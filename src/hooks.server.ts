@@ -6,13 +6,12 @@ let lolSpectator: LolSpectator;
 
 export const handle: Handle = async ({ event, resolve }) => {
     if (!lolSpectator) {
-        console.log("[SERVER] Initializing LolSpectator");
-
         lolSpectator = new LolSpectator(findLeaguePath());
-        await lolSpectator.init();
     }
 
     event.locals.lolSpectator = lolSpectator;
+    event.locals.twitchBot = lolSpectator.twitchBot;
+    event.locals.obsController = lolSpectator.obsController;
 
     return resolve(event);
 };

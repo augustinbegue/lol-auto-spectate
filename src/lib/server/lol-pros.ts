@@ -1,9 +1,24 @@
 import { error } from "@sveltejs/kit";
 
-export const summoners: { [key: string]: LolProPlayer | null } = {};
+const summoners: { [key: string]: LolProPlayer | null | undefined } = {
+    Sσreαnα: {
+        name: "Sardoche",
+        country: "FR",
+        social_media: {
+            twitter: "Sardoche_Lol",
+        },
+    },
+    lIlIlllIllIlII: {
+        name: "Sardoche",
+        country: "FR",
+        social_media: {
+            twitter: "Sardoche_Lol",
+        },
+    },
+};
 
 export async function getSummoner(summonerName: string) {
-    if (!summoners[summonerName]) {
+    if (summoners[summonerName] === undefined) {
         let res = await fetch(
             `https://api.lolpros.gg/es/search?query=${summonerName.trim()}&active=true`,
         );

@@ -9,5 +9,11 @@ export const GET: RequestHandler = async ({ params }) => {
         throw error(400, "Summoner name not provided");
     }
 
-    return json(await getSummoner(summonerName));
+    let lpro = await getSummoner(summonerName);
+
+    if (!lpro) {
+        throw error(404, "Summoner not found");
+    }
+
+    return json(lpro);
 };

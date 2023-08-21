@@ -5,16 +5,55 @@
 
     export let data: PageData;
 
-    let wins = data.leagueEntry?.wins ?? 1;
-    let losses = data.leagueEntry?.losses ?? 1;
+    let wins = data.leagueEntry?.wins ?? 0;
+    let losses = data.leagueEntry?.losses ?? 0;
     $: winrate = Math.round((wins / (wins + losses)) * 100);
 
     let sessionSummoner = data.summoner?.name;
     let sessionWins = 0;
     let sessionLosses = 0;
+    let sessionHistory: string[] = [];
     $: sessionWinrate = Math.round(
         (sessionWins / (sessionWins + sessionLosses)) * 100,
     );
+
+    $: if (sessionSummoner == data.summoner?.name) {
+        let newWins = data.leagueEntry?.wins ?? 0;
+        let newLosses = data.leagueEntry?.losses ?? 0;
+
+        if (newWins != wins) {
+            sessionWins++;
+            sessionHistory = ["W", ...sessionHistory];
+        } else if (newLosses != losses) {
+            sessionLosses++;
+            sessionHistory = ["L", ...sessionHistory];
+        }
+
+        wins = newWins;
+        losses = newLosses;
+    } else {
+        sessionLosses = 0;
+        sessionWins = 0;
+        sessionSummoner = data.summoner?.name;
+        sessionHistory = [];
+    }
+
+    let status = data.status;
+    let loadingCounter = 0;
+    let loadingTimer: NodeJS.Timeout | undefined = undefined;
+
+    $: if (status != data.status && data.status == "loading") {
+        status = "loading";
+
+        loadingTimer = setInterval(() => {
+            loadingCounter++;
+        }, 1000);
+    } else if (status != data.status && data.status != "loading") {
+        status = data.status;
+        loadingCounter = 0;
+
+        clearInterval(loadingTimer);
+    }
 
     function rankToInt(rank: string | undefined) {
         switch (rank) {
@@ -31,47 +70,16 @@
         }
     }
 
-    let status = data.status;
     let loadStart: number = 0;
 
     onMount(() => {
         setInterval(() => {
             invalidateAll();
-
-            if (sessionSummoner == data.summoner?.name) {
-                if (data.leagueEntry?.wins != undefined) {
-                    if (wins != data.leagueEntry?.wins) {
-                        sessionWins++;
-                    }
-                    wins = data.leagueEntry?.wins;
-                } else {
-                    wins = 1;
-                }
-
-                if (data.leagueEntry?.losses != undefined) {
-                    if (losses != data.leagueEntry?.losses) {
-                        sessionLosses++;
-                    }
-
-                    losses = data.leagueEntry?.losses;
-                } else {
-                    losses = 1;
-                }
-            } else {
-                sessionLosses = 0;
-                sessionWins = 0;
-            }
-
-            if (status == "searching" && data.status == "loading") {
-                loadStart = Date.now();
-            }
-
-            status = data.status;
         }, 5000);
     });
 </script>
 
-<div class="container">
+<div class="screen">
     <div class="widget">
         {#if data.status != "offline"}
             <div>
@@ -131,7 +139,7 @@
                             loading!
                         </p>
                         <p class="lolpro-info">
-                            {Math.round(Date.now() - loadStart / 1000)}s
+                            {loadingCounter}s elapsed
                         </p>
                     </div>
                     <div id="summoner">
@@ -171,7 +179,7 @@
                             loading!
                         </p>
                         <p class="lolpro-info">
-                            {Math.round(Date.now() - loadStart / 1000)}s
+                            {loadingCounter}s elapsed
                         </p>
                     </div>
                     <div id="stats">
@@ -212,6 +220,7 @@
                             </p>
                         {/if}
                     </div>
+
                     <div id="stats">
                         <span>> STATS</span>
                         <p>
@@ -224,7 +233,12 @@
                         <span>> SESSION</span>
                         <p>
                             {sessionWins}W {sessionLosses}L {#if sessionWins + sessionLosses != 0}({sessionWinrate}%)
-                            {/if}
+                            {/if} |
+                            {#each sessionHistory as r}
+                                <p class={r}>
+                                    {r}
+                                </p>
+                            {/each}
                         </p>
                     </div>
 
@@ -240,7 +254,7 @@
     </div>
 </div>
 
-<style>
+<style lang="postcss">
     p {
         padding: 0px;
         margin: 0px;
@@ -252,25 +266,23 @@
         height: auto;
     }
 
-    .container {
-        height: 100vh;
-        width: 100vw;
+    .screen {
+        @apply h-screen w-screen;
     }
+
     .widget {
+        @apply font-mono w-full h-full;
         background-color: rgba(0, 0, 0, 0.5);
         padding: 0.5rem 1rem 0.5rem 1rem;
         color: white;
-        font-family: "CascaydiaCove NF Mono", "Courier New", Courier, monospace;
+
         font-size: 2rem;
-        border-top: solid 0.5rem #600093;
-        border-bottom: solid 0.5rem #600093;
+        @apply border-y-purple border-y-8;
         display: flex;
         flex-direction: row;
-        justify-content: start;
+        justify-content: flex-start;
         align-items: center;
         gap: 20px;
-        height: 100%;
-        width: 100%;
     }
 
     .widget > div {
@@ -282,7 +294,7 @@
     .widget > div > div {
         display: flex;
         flex-direction: column;
-        align-items: start;
+        align-items: flex-start;
         justify-content: center;
         height: 100%;
         min-height: 100%;
@@ -331,6 +343,14 @@
     .widget .lolpro-info {
         font-size: 3rem;
         font-weight: normal;
+    }
+
+    .widget .W {
+        color: lightgreen !important;
+    }
+
+    .widget .L {
+        color: lightcoral !important;
     }
 
     .widget > div:first-child {

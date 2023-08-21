@@ -1,38 +1,63 @@
-# create-svelte
+# lol-auto-spectate
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+This tool allows you to automatically spectate the games of a specific summoner in League of Legends.
 
-## Creating a project
+## Installation & Build
 
-If you're seeing this, you've probably already done this step. Congrats!
+-   Clone the repository
+-   Install the dependencies with `npm install`
+-   Build the project with `npm run build`
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+## Usage
 
-# create a new project in my-app
-npm create svelte@latest my-app
+-   Create a file named `.env` with the following content:
+
+```
+RIOT_API_KEY="Riot API Key"
+ORIGIN="http://localhost:3000"
 ```
 
-## Developing
+-   Only required if you want to use the streaming integrations.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```
+OBS_WS_URL="ws://localhost:4455"
+OBS_WS_PASSWORD="obs ws password"
+OBS_SCENE_COLLECTION="scene collection name"
+OBS_GAME_SCENE="name of the scene displayed when spectating a game"
+OBS_WAITING_SCENE="name of the scene displayed when waiting for a game"
 ```
 
-## Building
+-   Only required if you want to use the Twitch integration.
 
-To create a production version of your app:
-
-```bash
-npm run build
+```
+TWITCH_USERNAME="twitch username"
+TWITCH_PASSWORD="twitch oauth token"
+TWITCH_CHANNEL="twitch channel name"
 ```
 
-You can preview the production build with `npm run preview`.
+-   Start the server with `npm run start`
+-   Open the application in your browser at `http://localhost:3000`
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+<img src="https://i.imgur.com/cZzc5LT.png" >
+
+-   This interface can be used to select the summoner you want to spectate and to enable/disable the obs & twitch integrations.
+
+## Integrations
+
+### OBS
+
+-   The OBS integration allows you to automatically switch scenes when spectating a game.
+-   The application will automatically switch to the scene named `OBS_GAME_SCENE` when spectating a game.
+-   The application will automatically switch to the scene named `OBS_WAITING_SCENE` when not spectating a game.
+-   The application will also automatically start your strean when a game is found.
+
+-   The application also exposes a widget that can be integrated in OBS at `http://localhost:3000/widget`
+
+<img src="https://i.imgur.com/PCnSGcQ.png" >
+
+### Twitch
+
+-   The Twitch integration allows your spectators to interact with the application through Twitch chat.
+    -   They can use the `!switch <summoner name>` command to spectate a specific summoner.
+        This will trigger a vote and the summoner with the most votes will be spectated.
+    -   They can use the `!opgg` command to get an opgg link to the current account.

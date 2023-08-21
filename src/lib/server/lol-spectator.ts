@@ -1,5 +1,5 @@
 import ks from "node-key-sender";
-import robot from "robotjs";
+import path from "path";
 import { RiotWrapper } from "lol-api-wrapper";
 import type {
     CurrentGameInfo,
@@ -38,6 +38,10 @@ export class LolSpectator {
 
     constructor(leagueFolderPath: string) {
         this.leagueFolderPath = leagueFolderPath;
+
+        if (!this.twitchBot) {
+            this.twitchBot = new TwitchBot(this);
+        }
     }
 
     async init(obsControl: boolean = false) {
@@ -49,10 +53,6 @@ export class LolSpectator {
             if (!this.obsController) {
                 this.obsController = new OBSController();
                 await this.obsController.setup();
-            }
-
-            if (!this.twitchBot) {
-                this.twitchBot = new TwitchBot(this);
             }
         }
 
@@ -249,7 +249,7 @@ export class LolSpectator {
 
                     // Wait for the game to load and then configure the camera
                     setTimeout(async () => {
-                        this.configureCamera();
+                        await this.configureCamera();
 
                         if (this.obsController) {
                             await this.obsController?.setGameScene();
@@ -290,19 +290,16 @@ export class LolSpectator {
 
     private async configureCamera() {
         // Set camera zoom
-        console.log("Setting camera zoom");
-        robot.moveMouse(10, 10);
-        robot.mouseClick();
-        await ks.sendCombination(["control", "shift", "z"]);
-        robot.scrollMouse(100000000, 100000000);
+        log.debug("Setting camera zoom");
+        execSync(`${process.cwd()}/scripts/autohotkey/scrolldown.exe`);
 
         // Set HUD
-        console.log("Setting HUD");
+        log.debug("Setting HUD");
         ks.sendKey("u");
         ks.sendKey("o");
         ks.sendKey("n");
 
-        console.log("Setting camera lock");
+        log.debug("Setting camera lock");
         if (this.summonerGameIndex != null) {
             this.configureSummonerCamera(this.summonerGameIndex);
         } else {

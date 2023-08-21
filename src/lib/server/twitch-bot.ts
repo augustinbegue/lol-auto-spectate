@@ -4,15 +4,27 @@ import type { LolSpectator } from "./lol-spectator";
 import { Logger } from "tslog";
 
 const log = new Logger({
-    name: "obs-controller",
+    name: "twitch-bot",
     prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t",
 });
 
 export class TwitchBot {
-    riotApi: RiotWrapper | undefined;
     lolSpectator: LolSpectator | undefined;
-    client: tmi.Client;
 
+    authenticated = false;
+    scopes = [
+        "moderator:manage:announcements",
+        "moderator:manage:banned_users",
+        "chat:read",
+        "chat:edit",
+    ];
+    private accessToken = "";
+    private refreshToken = "";
+    twitchUser: any;
+
+    client: tmi.Client | undefined;
+
+    voteTime = 1000 * 60 * 1;
     voteInProgress = false;
     voteSummonerName = "";
     voted: string[] = [];
@@ -22,13 +34,241 @@ export class TwitchBot {
 
     constructor(lolSpectator: LolSpectator) {
         this.lolSpectator = lolSpectator;
-        this.riotApi = lolSpectator.riot;
+    }
+
+    getAuthUrl(redirect_uri: string) {
+        const details = {
+            client_id: process.env.TWITCH_CLIENT_ID,
+            client_secret: process.env.TWITCH_CLIENT_SECRET,
+            grant_type: "client_credentials",
+        };
+
+        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${
+            details.client_id
+        }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
+    }
+
+    async authenticate(redirect_uri: string, code: string) {
+        const details = {
+            client_id: process.env.TWITCH_CLIENT_ID,
+            client_secret: process.env.TWITCH_CLIENT_SECRET,
+            grant_type: "authorization_code",
+            code,
+            redirect_uri,
+        };
+
+        let formBody = [];
+        for (let property in details) {
+            let encodedKey = encodeURIComponent(property);
+            let encodedValue = encodeURIComponent((details as any)[property]);
+            formBody.push(encodedKey + "=" + encodedValue);
+        }
+        const res = await fetch("https://id.twitch.tv/oauth2/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: formBody.join("&"),
+        });
+
+        if (!res.ok) {
+            throw new Error(
+                `[twitch-bot] Failed to authenticate with Twitch: ${res.status} ${res.statusText}`,
+            );
+        }
+
+        const json = await res.json();
+
+        if (!json.access_token) {
+            throw new Error("[twitch-bot] Failed to authenticate with Twitch");
+        } else {
+            log.info(`Successfully authenticated with Twitch`);
+        }
+
+        this.accessToken = json.access_token;
+        this.refreshToken = json.refresh_token;
+
+        log.debug(`Access token: ${this.accessToken}`);
+
+        this.authenticated = true;
+        this.connectToChat();
+    }
+
+    private async refresh() {
+        const details = {
+            client_id: process.env.TWITCH_CLIENT_ID,
+            client_secret: process.env.TWITCH_CLIENT_SECRET,
+            grant_type: "refresh_token",
+            refresh_token: this.refreshToken,
+        };
+
+        let formBody = [];
+        for (let property in details) {
+            let encodedKey = encodeURIComponent(property);
+            let encodedValue = encodeURIComponent((details as any)[property]);
+            formBody.push(encodedKey + "=" + encodedValue);
+        }
+
+        const res = await fetch("https://id.twitch.tv/oauth2/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: formBody.join("&"),
+        });
+
+        const json = await res.json();
+
+        if (!json.access_token) {
+            throw new Error("[twitch-bot] Failed to refresh Twitch token");
+        }
+
+        this.accessToken = json.access_token;
+        this.refreshToken = json.refresh_token;
+    }
+
+    async twitchRequest(
+        method: string,
+        endpoint: string,
+        headers: any,
+        body: any,
+        refreshed = false,
+    ): Promise<Response> {
+        if (!this.accessToken) {
+            throw new Error("[twitch-bot] Not authenticated");
+        }
+
+        const res = await fetch(`https://api.twitch.tv/${endpoint}`, {
+            method,
+            headers: {
+                Authorization: `Bearer ${this.accessToken}`,
+                "Client-Id": process.env.TWITCH_CLIENT_ID ?? "",
+                ...headers,
+            },
+            body: body,
+        });
+
+        if (res.status === 401 && !refreshed) {
+            await this.refresh();
+            return this.twitchRequest(method, endpoint, body, headers, true);
+        } else if (res.status === 401) {
+            throw new Error("[twitch-bot] Failed to refresh Twitch token");
+        }
+
+        if (!res.ok) {
+            log.error(
+                `Failed to make Twitch request to: ${res.status} ${
+                    res.statusText
+                } ${await res.text()}`,
+            );
+            console.log(method, endpoint, headers, body);
+        }
+
+        return res;
+    }
+
+    private async getUser(username: string) {
+        const res = await this.twitchRequest(
+            "GET",
+            `helix/users?login=${username}`,
+            {},
+            undefined,
+        );
+
+        if (!res.ok) {
+            throw new Error(
+                `[twitch-bot] Failed to get user ${username}: ${res.status} ${res.statusText}`,
+            );
+        }
+
+        const json = await res.json();
+        if (!json.data || json.data.length === 0) {
+            return null;
+        }
+
+        return json.data[0];
+    }
+
+    private async chatAnnouncement(message: string) {
+        if (!this.twitchUser) {
+            this.twitchUser = await this.getUser(
+                process.env.TWITCH_CHANNEL ?? "",
+            );
+        }
+
+        log.info(`Sending chat announcement: ${message} to`, this.twitchUser);
+
+        const res = await this.twitchRequest(
+            "POST",
+            `helix/chat/announcements?broadcaster_id=${this.twitchUser.id}&moderator_id=${this.twitchUser.id}`,
+            {
+                "Content-Type": "application/json",
+            },
+            JSON.stringify({
+                message,
+                color: "purple",
+            }),
+        );
+
+        if (res.ok) {
+            log.info(`Chat announcement sent: ${message}`);
+            return true;
+        }
+        return false;
+    }
+
+    private async chatban(username: string, reason: string, duration?: number) {
+        if (!this.twitchUser) {
+            this.twitchUser = await this.getUser(
+                process.env.TWITCH_CHANNEL ?? "",
+            );
+        }
+
+        const targetUser = await this.getUser(username);
+
+        if (!targetUser) {
+            log.error(`Failed to find user ${username}`);
+            return false;
+        }
+
+        const res = await this.twitchRequest(
+            "POST",
+            `helix/moderation/bans?broadcaster_id=${this.twitchUser.id}&moderator_id=${this.twitchUser.id}`,
+            {
+                "Content-Type": "application/json",
+            },
+            JSON.stringify({
+                data: {
+                    user_id: targetUser.id,
+                    reason,
+                    duration,
+                },
+            }),
+        );
+
+        if (res.ok) {
+            log.info(`Chat banned ${username} for ${duration}s: ${reason}`);
+            return true;
+        }
+
+        log.error(
+            `Failed to chat ban ${username}: ${res.status} ${res.statusText}`,
+        );
+        return false;
+    }
+
+    private async connectToChat(retry = false) {
+        if (retry) {
+            await this.refresh();
+
+            log.info("Reconnecting to Twitch chat");
+        }
 
         // Define configuration options
         const opts = {
             identity: {
                 username: process.env.TWITCH_USERNAME,
-                password: process.env.TWITCH_PASSWORD,
+                password: `oauth:${this.accessToken}`,
             },
             channels: [process.env.TWITCH_CHANNEL],
         };
@@ -43,14 +283,13 @@ export class TwitchBot {
         this.client.on("connected", (addr, port) => {
             this.onConnectedHandler(addr, port);
         });
-        this.client.on("disconnected", () =>
-            log.warn("Disconnected from Twitch"),
-        );
+        this.client.on("disconnected", () => {
+            log.warn("Disconnected from Twitch");
+            this.connectToChat(true);
+        });
 
         // Connect to Twitch:
         this.client.connect();
-
-        log.info("TwitchBot initialized");
     }
 
     async onSwitchCommand(
@@ -62,7 +301,7 @@ export class TwitchBot {
             `Received switch command from ${context.username} with args ${args}`,
         );
 
-        if (!this.riotApi) {
+        if (!this.lolSpectator?.riot) {
             throw new Error("[twitch-bot] riotApi is not defined");
         }
 
@@ -72,10 +311,13 @@ export class TwitchBot {
             return;
         }
 
-        let summonerId = await this.riotApi.getSummonerIdsByName(summonerName);
+        log.info(`Checking if summoner ${summonerName} exists`);
+        let summonerId = await this.lolSpectator.riot.getSummonerIdsByName(
+            summonerName,
+        );
 
         if (!summonerId) {
-            this.client.say(
+            this.client!.say(
                 target,
                 `@${context.username} Summoner "${summonerName}" not found`,
             );
@@ -85,25 +327,24 @@ export class TwitchBot {
         this.voteSummonerName = summonerId.name;
 
         if (!this.lolSpectator?.summoner?.name) {
-            this.client.say(
-                target,
+            await this.chatAnnouncement(
                 `@${context.username} Switching to ${summonerName}`,
             );
             await this.lolSpectator?.start(summonerName);
             return;
         }
 
-        this.client.say(
-            target,
-            `🚨🚨 Starting the vote to switch to: ${summonerName} | To switch, type !yes. | To stay with ${this.lolSpectator?.summoner?.name}, type !no | 2min`,
+        log.info(`Starting vote to switch to ${summonerName}`);
+        await this.chatAnnouncement(
+            `Starting the vote to switch to: ${summonerName} | To switch, type !yes. To stay with ${this.lolSpectator?.summoner?.name}, type !no | 1min`,
         );
 
         this.voteInProgress = true;
 
         this.voteStart = Date.now();
-        this.voteEnd = this.voteStart + 1000 * 60 * 2;
+        this.voteEnd = this.voteStart + this.voteTime;
 
-        let int = setInterval(() => {
+        let int = setInterval(async () => {
             if (!this.voteInProgress) {
                 clearInterval(int);
                 return;
@@ -114,9 +355,8 @@ export class TwitchBot {
 
             let remaining = Math.round((this.voteEnd - Date.now()) / 1000);
 
-            this.client.say(
-                target,
-                `🚨🚨 Vote to switch to ${summonerName} 🚨🚨 | Yes: ${yesVotes} | No: ${noVotes} | Remaining ${remaining}s`,
+            await this.chatAnnouncement(
+                `Vote to switch to ${summonerName} | Yes: ${yesVotes} | No: ${noVotes} | Remaining ${remaining}s`,
             );
         }, 1000 * 30);
 
@@ -127,22 +367,24 @@ export class TwitchBot {
             const noVotes = this.votes["!no"] || 0;
 
             if (yesVotes > noVotes) {
-                this.client.say(
-                    target,
-                    `@${context.username} Switching to ${summonerName}`,
-                );
+                await this.chatAnnouncement(`Switching to ${summonerName}`);
                 await this.lolSpectator?.stop();
                 await this.lolSpectator?.start(summonerName);
             } else {
-                this.client.say(
-                    target,
-                    `@${context.username} Staying with ${this.lolSpectator?.summoner?.name}`,
+                await this.chatAnnouncement(
+                    `Staying with ${this.lolSpectator?.summoner?.name}. @${context.username} is muted for 5 minutes.`,
+                );
+
+                this.chatban(
+                    context.username,
+                    "Lost summoner switch vote",
+                    5 * 60,
                 );
             }
 
             this.voted = [];
             this.votes = {};
-        }, 1000 * 60 * 2);
+        }, this.voteTime);
     }
 
     async onMessageHandler(
@@ -191,7 +433,7 @@ export class TwitchBot {
                 return;
             }
 
-            this.client.say(
+            this.client!.say(
                 target,
                 `@${context.username} https://euw.op.gg/summoner/userName=${this.lolSpectator?.summoner?.name}`,
             );
