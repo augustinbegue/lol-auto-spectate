@@ -28,7 +28,7 @@
     }
 </script>
 
-<div class="container mx-auto font-mono">
+<div class="container mx-auto h-screen font-mono p-4 bg-gray text-white">
     <h1 class="text-2xl">Lol Auto Spectator</h1>
     <h2 class="text-xl">Current Status : {data.lolSpectator.status}</h2>
 

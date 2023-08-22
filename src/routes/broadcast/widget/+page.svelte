@@ -107,7 +107,10 @@
         {#if data.status != "offline"}
             {#if data.leagueEntry}
                 <div>
-                    <SummonerEntry leagueEntry={data.leagueEntry} />
+                    <SummonerEntry
+                        leagueEntry={data.leagueEntry}
+                        size={"large"}
+                    />
                 </div>
             {/if}
             <div>

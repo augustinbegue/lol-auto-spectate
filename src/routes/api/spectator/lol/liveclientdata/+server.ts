@@ -1,9 +1,10 @@
 import { error, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
+import farsight, { type GameObject } from "@larseble/farsight";
 
 import items from "../../../../../../static/assets/datadragon/data/en_GB/item.json";
 
-export const GET: RequestHandler = async ({ fetch }) => {
+export const GET: RequestHandler = async ({ locals, fetch }) => {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     try {
@@ -20,29 +21,50 @@ export const GET: RequestHandler = async ({ fetch }) => {
 
         const data: LiveClientData = await res.json();
 
-        for (let i = 0; i < data.allPlayers.length; i++) {
-            const p = data.allPlayers[i];
-
-            p.items = p.items.map((item) => {
-                const itemData = (items as any).data[item.itemID];
-
-                item.price = itemData.gold.total;
-
-                return item;
-            });
+        let fsight = true;
+        if (!farsight.isReady()) {
+            fsight = await farsight.connectToLeague();
         }
 
-        return json(data);
+        if (!fsight) {
+            return json(data);
+        }
+
+        const snapshot = farsight.makeSnapshot();
+
+        for (let i = 0; i < data.allPlayers.length; i++) {
+            const player = data.allPlayers[i];
+
+            player.championStats = snapshot.champions.find(
+                (champion) => champion.displayName === player.summonerName,
+            ) as any;
+        }
+
+        return json({
+            ...data,
+            farsight: fsight,
+            inhibitors: snapshot.inhibitors,
+            jungle: snapshot.jungle,
+            turrets: snapshot.turrets,
+            nextDragonType: snapshot.nextDragonType,
+            other: snapshot.other,
+        });
     } catch (e) {
         throw error(500, JSON.stringify(e));
     }
 };
 
 export interface LiveClientData {
+    farsight?: boolean;
     activePlayer: ActivePlayer;
     allPlayers: AllPlayer[];
     events: Events;
     gameData: GameData;
+    turrets?: GameObject[];
+    inhibitors?: GameObject[];
+    jungle?: GameObject[];
+    other?: GameObject[];
+    nextDragonType?: string;
 }
 
 export interface ActivePlayer {
@@ -51,6 +73,12 @@ export interface ActivePlayer {
 
 export interface AllPlayer {
     championName: string;
+    championStats?: GameObject & {
+        currentGold: number;
+        totalGold: number;
+        experience: number;
+        level: number;
+    };
     isBot: boolean;
     isDead: boolean;
     items: Item[];

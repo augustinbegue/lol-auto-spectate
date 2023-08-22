@@ -18,44 +18,58 @@
         ?.filter((p) => p.team === "CHAOS")
         .reduce((acc, cur) => acc + cur.scores.kills, 0);
 
-    const summonerGold: { [key: string]: number } = {};
+    const summonerItemGold: { [key: string]: number } = {};
 
     $: if (data.allPlayers) {
         for (const player of data.allPlayers) {
-            summonerGold[player.summonerName] = player.items.reduce(
+            summonerItemGold[player.summonerName] = player.items.reduce(
                 (acc, cur) => acc + cur.price,
                 0,
             );
         }
     }
 
-    $: orderGold =
-        data.allPlayers
-            ?.filter((p) => p.team === "ORDER")
-            .reduce((acc, cur) => acc + summonerGold[cur.summonerName], 0) ?? 0;
+    $: orderGold = data.farsight
+        ? data.allPlayers
+              .filter((p) => p.team === "ORDER")
+              .reduce(
+                  (acc, cur) => acc + (cur.championStats?.totalGold ?? 0),
+                  0,
+              )
+        : data.allPlayers
+              ?.filter((p) => p.team === "ORDER")
+              .reduce(
+                  (acc, cur) => acc + summonerItemGold[cur.summonerName],
+                  0,
+              ) ?? 0;
 
-    $: chaosGold =
-        data.allPlayers
-            ?.filter((p) => p.team === "CHAOS")
-            .reduce((acc, cur) => acc + summonerGold[cur.summonerName], 0) ?? 0;
+    $: chaosGold = data.farsight
+        ? data.allPlayers
+              .filter((p) => p.team === "CHAOS")
+              .reduce(
+                  (acc, cur) => acc + (cur.championStats?.totalGold ?? 0),
+                  0,
+              )
+        : data.allPlayers
+              ?.filter((p) => p.team === "CHAOS")
+              .reduce(
+                  (acc, cur) => acc + summonerItemGold[cur.summonerName],
+                  0,
+              ) ?? 0;
 
     $: orderTurrets =
-        data.events?.Events.filter(
-            (e) =>
-                e.EventName === "TurretKilled" &&
-                orderPlayers.find((p) => p.summonerName === e.KillerName ?? ""),
-        ).length ?? 0;
+        data.turrets?.filter((t) => t.team === 200 && t.isAlive === false)
+            .length ?? 0;
 
     $: chaosTurrets =
-        data.events?.Events.filter(
-            (e) =>
-                e.EventName === "TurretKilled" &&
-                chaosPlayers.find((p) => p.summonerName === e.KillerName ?? ""),
-        ).length ?? 0;
+        data.turrets?.filter((t) => t.team === 100 && t.isAlive === false)
+            .length ?? 0;
 
     let interval: NodeJS.Timeout;
     const lolproAccounts: { [key: string]: LolProPlayer } = {};
     onMount(async () => {
+        console.log(data);
+
         // Auto-refresh data every second
         interval = setInterval(() => {
             invalidateAll();
@@ -483,10 +497,9 @@
                             <tbody>
                                 {#each orderPlayers as player, i}
                                     {@const diff =
-                                        summonerGold[player.summonerName] -
-                                        summonerGold[
-                                            chaosPlayers[i].summonerName
-                                        ]}
+                                        (player.championStats?.totalGold ?? 0) -
+                                        (chaosPlayers[i].championStats
+                                            ?.totalGold ?? 0)}
                                     <tr>
                                         <td
                                             class="h-[46px] w-20 flex flex-col justify-center items-end"
@@ -755,8 +768,8 @@
                     <div class="diff">
                         {#each chaosPlayers as player, i}
                             {@const diff =
-                                summonerGold[player.summonerName] -
-                                summonerGold[orderPlayers[i].summonerName]}
+                                (player.championStats?.totalGold ?? 0) -
+                                (orderPlayers[i].championStats?.totalGold ?? 0)}
                             <tr>
                                 <td
                                     class="h-[46px] w-20 flex flex-col justify-center items-start"

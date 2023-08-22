@@ -1,15 +1,19 @@
 # TODO
 
+## Refactor
+
+-   Unlink obs-controller and twitch-bot from lol-spectator
+    -   Use EventEmitter for communication
+    -   lol-spectator should use lol-controller to control the client
+
 ## Overlay
 
--   Respawn Timer computed on backend
 -   Automatic teamfight view w. championPositionOnScreen
 -   OCR for golds & cs
 
 ## Widget
 
 -   fix session 1 W on start/summ change
--   fluidify load time
 
 ## Spectator
 
