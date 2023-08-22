@@ -4,11 +4,22 @@
     import RankDisplay from "$lib/display/summonerEntry/RankDisplay.svelte";
     import { invalidateAll } from "$app/navigation";
     import { slide } from "svelte/transition";
+    import type { LolProPlayer } from "$lib/server/lol-pros";
 
     export let data: PageData;
 
     let status: string;
     let interval: NodeJS.Timeout;
+
+    const lolproAccounts: { [key: string]: LolProPlayer } = {};
+
+    $: summonerNames = data.currentGame?.participants.map(
+        (p) => p.summonerName,
+    );
+
+    $: if (summonerNames?.length ?? 0 > 0) {
+        fetchLolProAccounts();
+    }
 
     onMount(() => {
         fetchStatus();
@@ -23,6 +34,22 @@
     onDestroy(() => {
         clearInterval(interval);
     });
+
+    async function fetchLolProAccounts() {
+        if (summonerNames) {
+            for (const summonerName of summonerNames) {
+                const res = await fetch(`/api/lolpros/${summonerName}`, {
+                    method: "GET",
+                });
+
+                if (res.ok) {
+                    const lpro = (await res.json()) as LolProPlayer;
+
+                    lolproAccounts[summonerName] = lpro;
+                }
+            }
+        }
+    }
 
     async function fetchStatus() {
         const res = await fetch("/api/spectator/status");
@@ -88,7 +115,33 @@
                                 )}
                                 alt=""
                             />
-                            {participant.summonerName}
+                            {#if lolproAccounts[participant.summonerName]}
+                                <div class="flex flex-col">
+                                    <span
+                                        class="flex flex-row justify-center items-center gap-1"
+                                    >
+                                        {lolproAccounts[
+                                            participant.summonerName
+                                        ].name}
+                                        <img
+                                            class="h-5 mx-1"
+                                            src="https://flagsapi.com/{lolproAccounts[
+                                                participant.summonerName
+                                            ].country}/flat/64.png"
+                                            alt="{lolproAccounts[
+                                                participant.summonerName
+                                            ].country} flag"
+                                        />
+                                    </span>
+                                    <span class="font-normal">
+                                        {participant.summonerName}
+                                    </span>
+                                </div>
+                            {:else}
+                                <span>
+                                    {participant.summonerName}
+                                </span>
+                            {/if}
                         </div>
                         {#if summonerEntry}
                             <div
