@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import type { PageData } from "./$types";
     import { invalidateAll } from "$app/navigation";
+    import SummonerEntry from "$lib/display/summonerEntry/RankDisplay.svelte";
 
     export let data: PageData;
 
@@ -55,6 +56,28 @@
         clearInterval(loadingTimer);
     }
 
+    let voting = data.twitchBot?.voteInProgress;
+    let votingEnd = data.twitchBot?.voteEnd;
+    let votingCounter = 0;
+    let votingTimer: NodeJS.Timeout | undefined = undefined;
+
+    $: if (voting != data.twitchBot?.voteInProgress) {
+        if (data.twitchBot?.voteInProgress) {
+            voting = true;
+            votingEnd = data.twitchBot?.voteEnd;
+
+            votingCounter = Math.round(
+                ((votingEnd || Date.now() - 60 * 1000) - Date.now()) / 1000,
+            );
+            votingTimer = setInterval(() => {
+                votingCounter--;
+            }, 1000);
+        } else {
+            clearInterval(votingTimer);
+            voting = false;
+        }
+    }
+
     function rankToInt(rank: string | undefined) {
         switch (rank) {
             case "I":
@@ -82,30 +105,13 @@
 <div class="screen">
     <div class="widget">
         {#if data.status != "offline"}
+            {#if data.leagueEntry}
+                <div>
+                    <SummonerEntry leagueEntry={data.leagueEntry} />
+                </div>
+            {/if}
             <div>
-                {#if data.leagueEntry?.tier.toLowerCase() == "grandmaster"}
-                    <img class="tier" src="/tiers/GM.webp" alt="" />
-                {:else}
-                    <img
-                        class="tier"
-                        src="/tiers/{data.leagueEntry?.tier.charAt(0)}.webp"
-                        alt=""
-                    />
-                {/if}
-                <p>
-                    {#if data.leagueEntry?.tier.toLowerCase() == "grandmaster"}
-                        GM
-                    {:else}
-                        {data.leagueEntry?.tier.charAt(0)}{rankToInt(
-                            data.leagueEntry?.rank,
-                        )}
-                    {/if}
-
-                    {data.leagueEntry?.leaguePoints}LP
-                </p>
-            </div>
-            <div>
-                {#if data.twitchBot?.voteInProgress}
+                {#if data.twitchBot && voting}
                     <div>
                         <span>> VOTE ON TWITCH CHAT</span>
                         <p>SWITCH TO {data.twitchBot.voteSummonerName} ?</p>
@@ -120,11 +126,7 @@
                     <div>
                         <span>> VOTE ON TWITCH CHAT</span>
                         <p>
-                            Remaining: {Math.round(
-                                ((data.twitchBot.voteEnd || Date.now()) -
-                                    Date.now()) /
-                                    1000,
-                            )}s
+                            Remaining: {votingCounter}s
                         </p>
                     </div>
                     <div>
@@ -272,7 +274,7 @@
 
     .widget {
         @apply font-mono w-full h-full;
-        background-color: rgba(0, 0, 0, 0.5);
+        @apply bg-gray;
         padding: 0.5rem 1rem 0.5rem 1rem;
         color: white;
 
@@ -303,7 +305,7 @@
     }
 
     .widget > div:first-child > p {
-        font-size: 2.5rem;
+        @apply text-3xl;
         font-weight: bolder;
     }
 
@@ -322,12 +324,12 @@
 
     .widget span {
         font-family: "CascaydiaCove NF Mono", "Courier New", Courier, monospace;
-        font-size: 3rem;
+        @apply text-5xl;
         font-weight: normal;
     }
 
     .widget p {
-        font-size: 5rem;
+        @apply text-6xl;
         font-weight: bolder;
         display: inline-flex;
         white-space: nowrap;

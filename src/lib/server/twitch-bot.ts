@@ -1,7 +1,7 @@
-import type { RiotWrapper } from "lol-api-wrapper";
 import tmi, { type Options, type CommonUserstate, client } from "tmi.js";
 import type { LolSpectator } from "./lol-spectator";
 import { Logger } from "tslog";
+import { getSummoner } from "./lol-pros";
 
 const log = new Logger({
     name: "twitch-bot",
@@ -15,6 +15,7 @@ export class TwitchBot {
     scopes = [
         "moderator:manage:announcements",
         "moderator:manage:banned_users",
+        "channel:manage:broadcast",
         "chat:read",
         "chat:edit",
     ];
@@ -257,6 +258,44 @@ export class TwitchBot {
         return false;
     }
 
+    private async updateStream(options: {
+        game_id?: string;
+        language?: string;
+        title?: string;
+        tags?: string[];
+    }) {
+        if (!this.twitchUser) {
+            this.twitchUser = await this.getUser(
+                process.env.TWITCH_CHANNEL ?? "",
+            );
+        }
+
+        if (
+            !options.game_id &&
+            !options.language &&
+            !options.title &&
+            (!options.tags || options.tags.length === 0)
+        ) {
+            return;
+        }
+
+        const res = await this.twitchRequest(
+            "PATCH",
+            `helix/channels?broadcaster_id=${this.twitchUser.id}`,
+            {
+                "Content-Type": "application/json",
+            },
+            JSON.stringify({
+                ...options,
+            }),
+        );
+
+        if (res.ok) {
+            log.info(`Updated stream: ${JSON.stringify(options)}`);
+            return true;
+        }
+    }
+
     private async connectToChat(retry = false) {
         if (retry) {
             await this.refresh();
@@ -324,19 +363,28 @@ export class TwitchBot {
             return;
         }
 
-        this.voteSummonerName = summonerId.name;
+        let newLolpro = await getSummoner(summonerId.name);
+
+        this.voteSummonerName = newLolpro
+            ? `${newLolpro.name} (${summonerId.name})`
+            : summonerId.name;
 
         if (!this.lolSpectator?.summoner?.name) {
             await this.chatAnnouncement(
-                `@${context.username} Switching to ${summonerName}`,
+                `@${context.username} Switching to ${this.voteSummonerName}`,
             );
             await this.lolSpectator?.start(summonerName);
             return;
         }
 
-        log.info(`Starting vote to switch to ${summonerName}`);
+        let oldLolpro = await getSummoner(this.lolSpectator?.summoner?.name);
+        let oldSummonerName = oldLolpro
+            ? `${oldLolpro.name} (${this.lolSpectator.summoner.name})`
+            : this.lolSpectator.summoner.name;
+
+        log.info(`Starting vote to switch to ${this.voteSummonerName}`);
         await this.chatAnnouncement(
-            `Starting the vote to switch to: ${summonerName} | To switch, type !yes. To stay with ${this.lolSpectator?.summoner?.name}, type !no | 1min`,
+            `Starting the vote to switch to: ${this.voteSummonerName} | To switch, type !yes. To stay with ${oldSummonerName}, type !no | 1min`,
         );
 
         this.voteInProgress = true;
@@ -356,9 +404,9 @@ export class TwitchBot {
             let remaining = Math.round((this.voteEnd - Date.now()) / 1000);
 
             await this.chatAnnouncement(
-                `Vote to switch to ${summonerName} | Yes: ${yesVotes} | No: ${noVotes} | Remaining ${remaining}s`,
+                `Vote to switch to ${this.voteSummonerName} | Yes: ${yesVotes} | No: ${noVotes} | Remaining ${remaining}s`,
             );
-        }, 1000 * 30);
+        }, 1001 * 20);
 
         setTimeout(async () => {
             this.voteInProgress = false;
@@ -368,11 +416,19 @@ export class TwitchBot {
 
             if (yesVotes > noVotes) {
                 await this.chatAnnouncement(`Switching to ${summonerName}`);
+
+                await this.updateStream({
+                    title: process.env.TWITCH_STREAM_TITLE?.replace(
+                        "{summonerName}",
+                        this.voteSummonerName,
+                    ),
+                });
+
                 await this.lolSpectator?.stop();
                 await this.lolSpectator?.start(summonerName);
             } else {
                 await this.chatAnnouncement(
-                    `Staying with ${this.lolSpectator?.summoner?.name}. @${context.username} is muted for 5 minutes.`,
+                    `Staying with ${oldSummonerName}. @${context.username} is muted for 5 minutes.`,
                 );
 
                 this.chatban(
