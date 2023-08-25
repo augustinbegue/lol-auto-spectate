@@ -8,6 +8,7 @@ const log = new Logger({
 
 export class OBSController {
     obs: OBSWebSocket;
+    connected: boolean = false;
     sceneCollection: string = "lol-auto-spectate";
     waitingScene: string = "waiting";
     gameScene: string = "ingame";
@@ -37,6 +38,12 @@ export class OBSController {
             log.info(
                 `Connected to server ${obsWebSocketVersion} (using RPC ${negotiatedRpcVersion})`,
             );
+            this.connected = true;
+
+            this.obs.on("ConnectionClosed", (data) => {
+                log.warn("Connection closed", data);
+                this.connected = false;
+            });
 
             this.sceneCollection =
                 process.env["OBS_SCENE_COLLECTION"] || "lol-auto-spectate";
@@ -90,5 +97,22 @@ export class OBSController {
         await this.obs.call("SetCurrentProgramScene", {
             sceneName: this.gameScene,
         });
+    }
+
+    async getCurrentScene() {
+        return (await this.obs.call("GetCurrentProgramScene"))
+            .currentProgramSceneName;
+    }
+
+    async isWaitingScene() {
+        let currentScene = await this.getCurrentScene();
+
+        return currentScene === this.waitingScene;
+    }
+
+    async isGameScene() {
+        let currentScene = await this.getCurrentScene();
+
+        return currentScene === this.gameScene;
     }
 }

@@ -19,10 +19,10 @@ export const load: PageServerLoad = async ({ locals }) => {
         leagueEntry: locals.lolSpectator.leagueEntry,
         lolpro: getSummoner(locals.lolSpectator.summoner.name),
         twitchBot: {
-            voteInProgress: locals.lolSpectator.twitchBot?.voteInProgress,
-            votes: locals.lolSpectator.twitchBot?.votes,
-            voteSummonerName: locals.lolSpectator.twitchBot?.voteSummonerName,
-            voteEnd: locals.lolSpectator.twitchBot?.voteEnd,
+            voteInProgress: locals.twitchBot?.voteInProgress,
+            votes: locals.twitchBot?.votes,
+            voteSummonerName: locals.twitchBot?.voteSummonerDisplayName,
+            voteEnd: locals.twitchBot?.voteEnd,
         },
     };
 };

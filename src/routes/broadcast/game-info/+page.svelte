@@ -17,16 +17,12 @@
         (p) => p.summonerName,
     );
 
-    $: if (summonerNames?.length ?? 0 > 0) {
-        fetchLolProAccounts();
-    }
-
     onMount(() => {
         fetchStatus();
+        fetchLolProAccounts();
 
         interval = setInterval(() => {
             fetchStatus();
-
             console.log(status);
         }, 1000);
     });
@@ -57,6 +53,7 @@
 
         if (status !== json.status) {
             invalidateAll();
+            fetchLolProAccounts();
         }
 
         status = json.status;

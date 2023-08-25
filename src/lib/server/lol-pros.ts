@@ -15,6 +15,13 @@ const summoners: { [key: string]: LolProPlayer | null | undefined } = {
             twitter: "Sardoche_Lol",
         },
     },
+    "500 or Nothing": {
+        name: "Sardoche",
+        country: "FR",
+        social_media: {
+            twitter: "Sardoche_Lol",
+        },
+    },
 };
 
 export async function getSummoner(summonerName: string) {

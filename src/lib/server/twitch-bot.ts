@@ -1,16 +1,22 @@
+import type TypedEmitter from "typed-emitter";
+
+import { EventEmitter } from "node:events";
 import tmi, { type Options, type CommonUserstate, client } from "tmi.js";
-import type { LolSpectator } from "./lol-spectator";
 import { Logger } from "tslog";
 import { getSummoner } from "./lol-pros";
+import { RiotWrapper } from "lol-api-wrapper";
 
 const log = new Logger({
     name: "twitch-bot",
     prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t",
 });
 
-export class TwitchBot {
-    lolSpectator: LolSpectator | undefined;
+type TwitchBotEvents = {
+    onSwitch: (summonerName: string) => void;
+};
 
+export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBotEvents>) {
+    riot: RiotWrapper | undefined;
     authenticated = false;
     scopes = [
         "moderator:manage:announcements",
@@ -25,16 +31,37 @@ export class TwitchBot {
 
     client: tmi.Client | undefined;
 
+    currentSummonerName: string | undefined;
+
     voteTime = 1000 * 60 * 1;
     voteInProgress = false;
-    voteSummonerName = "";
+    voteSummonerDisplayName = "";
     voted: string[] = [];
     votes: { [key: string]: number } = {};
     voteStart = 0;
     voteEnd = 0;
 
-    constructor(lolSpectator: LolSpectator) {
-        this.lolSpectator = lolSpectator;
+    constructor() {
+        super();
+
+        this.on("onSwitch", async (summonerName) => {
+            await this.chatAnnouncement(`Switching to ${summonerName}`);
+
+            await this.updateStream({
+                title: process.env.TWITCH_STREAM_TITLE?.replace(
+                    "{summonerName}",
+                    this.voteSummonerDisplayName,
+                ),
+            });
+
+            this.currentSummonerName = summonerName;
+        });
+    }
+
+    async init() {
+        if (!this.riot) {
+            this.riot = await RiotWrapper.build();
+        }
     }
 
     getAuthUrl(redirect_uri: string) {
@@ -50,6 +77,8 @@ export class TwitchBot {
     }
 
     async authenticate(redirect_uri: string, code: string) {
+        await this.init();
+
         const details = {
             client_id: process.env.TWITCH_CLIENT_ID,
             client_secret: process.env.TWITCH_CLIENT_SECRET,
@@ -340,7 +369,7 @@ export class TwitchBot {
             `Received switch command from ${context.username} with args ${args}`,
         );
 
-        if (!this.lolSpectator?.riot) {
+        if (!this.riot) {
             throw new Error("[twitch-bot] riotApi is not defined");
         }
 
@@ -351,9 +380,7 @@ export class TwitchBot {
         }
 
         log.info(`Checking if summoner ${summonerName} exists`);
-        let summonerId = await this.lolSpectator.riot.getSummonerIdsByName(
-            summonerName,
-        );
+        let summonerId = await this.riot.getSummonerIdsByName(summonerName);
 
         if (!summonerId) {
             this.client!.say(
@@ -365,26 +392,23 @@ export class TwitchBot {
 
         let newLolpro = await getSummoner(summonerId.name);
 
-        this.voteSummonerName = newLolpro
+        this.voteSummonerDisplayName = newLolpro
             ? `${newLolpro.name} (${summonerId.name})`
             : summonerId.name;
 
-        if (!this.lolSpectator?.summoner?.name) {
-            await this.chatAnnouncement(
-                `@${context.username} Switching to ${this.voteSummonerName}`,
-            );
-            await this.lolSpectator?.start(summonerName);
+        if (!this.currentSummonerName) {
+            this.emit("onSwitch", summonerName);
             return;
         }
 
-        let oldLolpro = await getSummoner(this.lolSpectator?.summoner?.name);
+        let oldLolpro = await getSummoner(this.currentSummonerName);
         let oldSummonerName = oldLolpro
-            ? `${oldLolpro.name} (${this.lolSpectator.summoner.name})`
-            : this.lolSpectator.summoner.name;
+            ? `${oldLolpro.name} (${this.currentSummonerName})`
+            : this.currentSummonerName;
 
-        log.info(`Starting vote to switch to ${this.voteSummonerName}`);
+        log.info(`Starting vote to switch to ${this.voteSummonerDisplayName}`);
         await this.chatAnnouncement(
-            `Starting the vote to switch to: ${this.voteSummonerName} | To switch, type !yes. To stay with ${oldSummonerName}, type !no | 1min`,
+            `Starting the vote to switch to: ${this.voteSummonerDisplayName} | To switch, type !yes. To stay with ${oldSummonerName}, type !no | 1min`,
         );
 
         this.voteInProgress = true;
@@ -404,7 +428,7 @@ export class TwitchBot {
             let remaining = Math.round((this.voteEnd - Date.now()) / 1000);
 
             await this.chatAnnouncement(
-                `Vote to switch to ${this.voteSummonerName} | Yes: ${yesVotes} | No: ${noVotes} | Remaining ${remaining}s`,
+                `Vote to switch to ${this.voteSummonerDisplayName} | Yes: ${yesVotes} | No: ${noVotes} | Remaining ${remaining}s`,
             );
         }, 1001 * 20);
 
@@ -415,17 +439,7 @@ export class TwitchBot {
             const noVotes = this.votes["!no"] || 0;
 
             if (yesVotes > noVotes) {
-                await this.chatAnnouncement(`Switching to ${summonerName}`);
-
-                await this.updateStream({
-                    title: process.env.TWITCH_STREAM_TITLE?.replace(
-                        "{summonerName}",
-                        this.voteSummonerName,
-                    ),
-                });
-
-                await this.lolSpectator?.stop();
-                await this.lolSpectator?.start(summonerName);
+                this.emit("onSwitch", summonerName);
             } else {
                 await this.chatAnnouncement(
                     `Staying with ${oldSummonerName}. @${context.username} is muted for 5 minutes.`,
@@ -485,13 +499,17 @@ export class TwitchBot {
         }
 
         if (command === "!opgg") {
-            if (!this.lolSpectator?.summoner?.name) {
+            if (!this.currentSummonerName) {
                 return;
             }
 
             this.client!.say(
                 target,
-                `@${context.username} https://euw.op.gg/summoner/userName=${this.lolSpectator?.summoner?.name}`,
+                `@${
+                    context.username
+                } https://euw.op.gg/summoner/userName=${encodeURIComponent(
+                    this.currentSummonerName,
+                )}`,
             );
             return;
         }

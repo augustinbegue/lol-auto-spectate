@@ -9,11 +9,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     }
 
     if (!locals.lolSpectator) {
-        throw error(500, "LolSpectator not initialized");
+        throw error(500, "LolSpectator not instantiated");
+    }
+
+    if (!locals.obsController) {
+        throw error(500, "OBSController not instantiated");
     }
 
     try {
-        await locals.lolSpectator.init(obsControl);
+        await locals.lolSpectator.init();
+
+        if (obsControl) {
+            await locals.obsController.setup();
+        }
+
         await locals.lolSpectator.start(summonerName);
     } catch (err) {
         throw error(500, (err as any).message);
