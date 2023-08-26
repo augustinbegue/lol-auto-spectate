@@ -100,7 +100,13 @@
                         }}
                         class="
                     flex flex-col h-full justify-start items-center w-full bg-gray text-white
-                    border-t-purple border-t-4"
+                     border-t-4"
+                        class:active={summonerEntry?.summonerName ===
+                            data.currentSummoner?.name}
+                        class:border-t-gray={summonerEntry?.summonerName ===
+                            data.currentSummoner?.name}
+                        class:border-t-purple={summonerEntry?.summonerName !==
+                            data.currentSummoner?.name}
                     >
                         <div
                             class="flex flex-row items-center gap-4 text-sm xl:text-xl font-bold p-2"
@@ -142,7 +148,11 @@
                         </div>
                         {#if summonerEntry}
                             <div
-                                class="flex flex-row w-full h-1/4 p-4 justify-center items-center border-t-purple border-t-4"
+                                class="flex flex-row w-full h-1/4 p-4 justify-center items-center border-t-4"
+                                class:border-t-gray={summonerEntry?.summonerName ===
+                                    data.currentSummoner?.name}
+                                class:border-t-purple={summonerEntry?.summonerName !==
+                                    data.currentSummoner?.name}
                             >
                                 <RankDisplay
                                     size="xsmall"
@@ -153,13 +163,15 @@
                                 >
                                     <p>
                                         {summonerEntry.wins}<span
-                                            class="text-purple font-bold"
-                                            >W</span
+                                            class="text-pink font-bold"
                                         >
+                                            W
+                                        </span>
                                         {summonerEntry.losses}<span
                                             class="text-red-400 font-bold"
-                                            >L</span
                                         >
+                                            L
+                                        </span>
                                     </p>
                                     <p class="text-xs xl:text-xl">
                                         {Math.round(
@@ -173,7 +185,11 @@
                             </div>
                         {/if}
                         <div
-                            class="flex flex-row w-full p-1 xl:p-4 justify-center gap-2 items-start border-t-purple border-t-4 text-sm xl:text-xl"
+                            class="flex flex-row w-full p-1 xl:p-4 justify-center gap-2 items-start border-t-4 text-sm xl:text-xl"
+                            class:border-t-gray={summonerEntry?.summonerName ===
+                                data.currentSummoner?.name}
+                            class:border-t-purple={summonerEntry?.summonerName !==
+                                data.currentSummoner?.name}
                         >
                             {#if data.championsById[participant.championId]}
                                 <div class="flex flex-col items-center">
@@ -279,6 +295,10 @@
 <style lang="postcss">
     .players {
         @apply flex flex-col w-screen h-screen font-mono items-center justify-center;
+    }
+
+    .active {
+        @apply bg-purple;
     }
 
     /* Animate peepo from left to right of the container */

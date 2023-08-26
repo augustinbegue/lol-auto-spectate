@@ -71,9 +71,8 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
             grant_type: "client_credentials",
         };
 
-        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${
-            details.client_id
-        }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
+        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${details.client_id
+            }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
     }
 
     async authenticate(redirect_uri: string, code: string) {
@@ -187,8 +186,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
 
         if (!res.ok) {
             log.error(
-                `Failed to make Twitch request to: ${res.status} ${
-                    res.statusText
+                `Failed to make Twitch request to: ${res.status} ${res.statusText
                 } ${await res.text()}`,
             );
             console.log(method, endpoint, headers, body);
@@ -505,8 +503,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
 
             this.client!.say(
                 target,
-                `@${
-                    context.username
+                `@${context.username
                 } https://euw.op.gg/summoner/userName=${encodeURIComponent(
                     this.currentSummonerName,
                 )}`,
