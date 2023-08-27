@@ -373,7 +373,19 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
 
         const summonerName = args.join(" ").trim();
 
-        if (summonerName.length === 0 || this.voteInProgress) {
+        if (summonerName.length === 0) {
+            this.client!.say(
+                target,
+                `@${context.username} Usage: !switch <summoner name>`,
+            );
+            return;
+        }
+
+        if (this.voteInProgress) {
+            this.client!.say(
+                target,
+                `@${context.username} A vote is already in progress`,
+            );
             return;
         }
 
