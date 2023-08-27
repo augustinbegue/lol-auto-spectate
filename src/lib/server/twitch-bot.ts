@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import tmi, { type Options, type CommonUserstate, client } from "tmi.js";
 import { Logger } from "tslog";
 import { getSummoner } from "./lol-pros";
-import { RiotWrapper } from "lol-api-wrapper";
+import { RiotApiWrapper } from "lol-api-wrapper";
 
 const log = new Logger({
     name: "twitch-bot",
@@ -16,7 +16,7 @@ type TwitchBotEvents = {
 };
 
 export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBotEvents>) {
-    riot: RiotWrapper | undefined;
+    riot: RiotApiWrapper | undefined;
     authenticated = false;
     scopes = [
         "moderator:manage:announcements",
@@ -60,7 +60,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
 
     async init() {
         if (!this.riot) {
-            this.riot = await RiotWrapper.build();
+            this.riot = new RiotApiWrapper(process.env.RIOT_API_KEY!);
         }
     }
 
@@ -71,9 +71,8 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
             grant_type: "client_credentials",
         };
 
-        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${
-            details.client_id
-        }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
+        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${details.client_id
+            }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
     }
 
     async authenticate(redirect_uri: string, code: string) {
@@ -187,8 +186,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
 
         if (!res.ok) {
             log.error(
-                `Failed to make Twitch request to: ${res.status} ${
-                    res.statusText
+                `Failed to make Twitch request to: ${res.status} ${res.statusText
                 } ${await res.text()}`,
             );
             console.log(method, endpoint, headers, body);
@@ -380,7 +378,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
         }
 
         log.info(`Checking if summoner ${summonerName} exists`);
-        let summonerId = await this.riot.getSummonerIdsByName(summonerName);
+        let summonerId = await this.riot.getSummonerByName("EUW1", summonerName);
 
         if (!summonerId) {
             this.client!.say(
@@ -505,8 +503,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
 
             this.client!.say(
                 target,
-                `@${
-                    context.username
+                `@${context.username
                 } https://euw.op.gg/summoner/userName=${encodeURIComponent(
                     this.currentSummonerName,
                 )}`,

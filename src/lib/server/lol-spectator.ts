@@ -1,4 +1,4 @@
-import { RiotWrapper } from "lol-api-wrapper";
+import { RiotApiWrapper } from "lol-api-wrapper";
 import type { LeagueEntryDTO } from "lol-api-wrapper/types";
 import { Logger } from "tslog";
 import { LolController } from "./lol-controller";
@@ -9,7 +9,7 @@ const log = new Logger({
 });
 
 export class LolSpectator extends LolController {
-    riot: RiotWrapper | undefined;
+    riot: RiotApiWrapper | undefined;
     leagueEntry: LeagueEntryDTO | undefined;
 
     currentTimeout: NodeJS.Timeout | null = null;
@@ -22,7 +22,7 @@ export class LolSpectator extends LolController {
 
     async init() {
         if (!this.riot) {
-            this.riot = await RiotWrapper.build();
+            this.riot = new RiotApiWrapper(process.env.RIOT_API_KEY!);
         }
 
         log.info("Spectator initialized");
@@ -43,7 +43,7 @@ export class LolSpectator extends LolController {
             await this.exitSpectatorClient();
         }
 
-        let summoner = await this.riot.getSummonerIdsByName(summonerName);
+        let summoner = await this.riot.getSummonerByName("EUW1", summonerName);
         if (!summoner) {
             log.error(
                 `Summoner ${summonerName} not found. Stopping lol-spectator`,
@@ -87,7 +87,8 @@ export class LolSpectator extends LolController {
             );
         }
 
-        let leagueEntries = await this.riot?.getLeagueEntryBySummonerId(
+        let leagueEntries = await this.riot?.getLeagueEntriesBySummonerId(
+            "EUW1",
             this.summoner.id,
         );
 
@@ -106,7 +107,7 @@ export class LolSpectator extends LolController {
         }
 
         // Check if the summoner has a game in progress
-        let currentGame = await this.riot.getActiveGame(this.summoner.id);
+        let currentGame = await this.riot.getActiveGameBySummonerId("EUW1", this.summoner.id);
 
         if (
             currentGame &&
