@@ -8,6 +8,7 @@ const summonerEntries: { [key: string]: LeagueEntryDTO | undefined } = {};
 
 export const load: PageServerLoad = async ({ locals }) => {
     const currentGame = locals.lolSpectator.currentGame;
+    const currentSummoner = locals.lolSpectator.summoner;
     const currentGameSummonerEntries: {
         [key: string]: LeagueEntryDTO | undefined;
     } = {};
@@ -84,6 +85,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     return {
+        currentSummoner,
         currentGame,
         currentGameSummonerEntries,
         championsById,

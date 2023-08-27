@@ -136,6 +136,8 @@ export class LolSpectator extends LolController {
                 this.lastGameId = 0;
             }
         } else {
+            log.info(`No game found`);
+
             this.status = "searching";
         }
 
