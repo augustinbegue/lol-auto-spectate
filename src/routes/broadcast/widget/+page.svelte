@@ -1,16 +1,15 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import type { PageData } from "./$types";
     import { invalidateAll } from "$app/navigation";
     import SummonerEntry from "$lib/display/summonerEntry/RankDisplay.svelte";
 
     export let data: PageData;
 
-    let wins = data.leagueEntry?.wins ?? 0;
-    let losses = data.leagueEntry?.losses ?? 0;
+    $: wins = data.leagueEntry?.wins ?? 0;
+    $: losses = data.leagueEntry?.losses ?? 0;
     $: winrate = Math.round((wins / (wins + losses)) * 100);
 
-    let sessionSummoner = data.summoner?.name;
     let sessionWins = 0;
     let sessionLosses = 0;
     let sessionHistory: string[] = [];
@@ -18,25 +17,29 @@
         (sessionWins / (sessionWins + sessionLosses)) * 100,
     );
 
-    $: if (sessionSummoner == data.summoner?.name) {
-        let newWins = data.leagueEntry?.wins ?? 0;
-        let newLosses = data.leagueEntry?.losses ?? 0;
-
-        if (newWins != wins) {
-            sessionWins++;
-            sessionHistory = ["W", ...sessionHistory];
-        } else if (newLosses != losses) {
-            sessionLosses++;
-            sessionHistory = ["L", ...sessionHistory];
-        }
-
-        wins = newWins;
-        losses = newLosses;
-    } else {
-        sessionLosses = 0;
+    function updateSessionHistory() {
         sessionWins = 0;
-        sessionSummoner = data.summoner?.name;
+        sessionLosses = 0;
         sessionHistory = [];
+
+        if (data.leagueHistory) {
+            let previousEntry = data.leagueHistory[0]?.leagueEntry;
+            for (let i = 1; i < data.leagueHistory.length; i++) {
+                if (previousEntry) {
+                    const entry = data.leagueHistory[i].leagueEntry;
+
+                    if (entry.wins > previousEntry.wins) {
+                        sessionWins++;
+                        sessionHistory = ["W", ...sessionHistory];
+                    } else if (entry.losses > previousEntry.losses) {
+                        sessionLosses++;
+                        sessionHistory = ["L", ...sessionHistory];
+                    }
+                }
+
+                previousEntry = data.leagueHistory[i].leagueEntry;
+            }
+        }
     }
 
     let status = data.status;
@@ -78,27 +81,18 @@
         }
     }
 
-    function rankToInt(rank: string | undefined) {
-        switch (rank) {
-            case "I":
-                return 1;
-            case "II":
-                return 2;
-            case "III":
-                return 3;
-            case "IV":
-                return 4;
-            default:
-                return 0;
-        }
-    }
-
-    let loadStart: number = 0;
-
+    let interval: NodeJS.Timeout | undefined = undefined;
     onMount(() => {
-        setInterval(() => {
+        updateSessionHistory();
+
+        interval = setInterval(() => {
             invalidateAll();
+            updateSessionHistory();
         }, 5000);
+    });
+
+    onDestroy(() => {
+        clearInterval(interval);
     });
 </script>
 
@@ -204,6 +198,7 @@
                                 <img
                                     src="https://flagsapi.com/{data.lolpro
                                         .country}/flat/64.png"
+                                    alt={data.lolpro.country}
                                 />
                                 {data.lolpro?.name}
                             </p>

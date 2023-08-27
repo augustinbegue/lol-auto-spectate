@@ -5,6 +5,7 @@
     import { invalidateAll } from "$app/navigation";
     import { slide } from "svelte/transition";
     import type { LolProPlayer } from "$lib/server/lol-pros";
+    import type { LeagueEntryDTO, LeagueTier } from "lol-api-wrapper/types";
 
     export let data: PageData;
 
@@ -17,12 +18,84 @@
         (p) => p.summonerName,
     );
 
-    onMount(() => {
-        fetchStatus();
-        fetchLolProAccounts();
+    let historyData: {
+        result: "win" | "loss";
+        lpDelta: number;
+        date: Date;
+        leagueEntry: LeagueEntryDTO;
+    }[];
 
-        interval = setInterval(() => {
-            fetchStatus();
+    $: {
+        if (data.leagueHistory) {
+            historyData = [];
+            let lastEntry = data.leagueHistory[0];
+
+            for (let i = 1; i < data.leagueHistory.length; i++) {
+                const entry = data.leagueHistory[i];
+
+                let lpDelta =
+                    entry.leagueEntry.leaguePoints -
+                    lastEntry.leagueEntry.leaguePoints;
+
+                if (lpDelta != 0) {
+                    if (entry.leagueEntry.tier != lastEntry.leagueEntry.tier) {
+                        if (
+                            tierOrder(entry.leagueEntry.tier) >
+                            tierOrder(lastEntry.leagueEntry.tier)
+                        ) {
+                            lpDelta += 100;
+                        } else {
+                            lpDelta -= 100;
+                        }
+                    }
+
+                    if (entry.leagueEntry.rank != lastEntry.leagueEntry.rank) {
+                        if (
+                            rankOrder(entry.leagueEntry.rank) >
+                            rankOrder(lastEntry.leagueEntry.rank)
+                        ) {
+                            lpDelta += 100;
+                        } else {
+                            lpDelta -= 100;
+                        }
+                    }
+
+                    if (entry.leagueEntry.wins > lastEntry.leagueEntry.wins) {
+                        historyData = [
+                            ...historyData,
+                            {
+                                result: "win",
+                                lpDelta,
+                                date: new Date(entry.date),
+                                leagueEntry: entry.leagueEntry,
+                            },
+                        ];
+                    } else if (
+                        entry.leagueEntry.losses > lastEntry.leagueEntry.losses
+                    ) {
+                        historyData = [
+                            ...historyData,
+                            {
+                                result: "loss",
+                                lpDelta,
+                                date: new Date(entry.date),
+                                leagueEntry: entry.leagueEntry,
+                            },
+                        ];
+                    }
+                }
+
+                lastEntry = entry;
+            }
+        }
+    }
+
+    onMount(async () => {
+        await fetchStatus();
+        await fetchLolProAccounts();
+
+        interval = setInterval(async () => {
+            await fetchStatus();
             console.log(status);
         }, 1000);
     });
@@ -52,8 +125,8 @@
         const json = await res.json();
 
         if (status !== json.status) {
-            invalidateAll();
-            fetchLolProAccounts();
+            await invalidateAll();
+            await fetchLolProAccounts();
         }
 
         status = json.status;
@@ -78,6 +151,59 @@
     function getPerkImageById(id: number) {
         if (data.runesReforgedById[id]) {
             return `/assets/datadragon/img/${data.runesReforgedById[id].icon}`;
+        }
+    }
+
+    function rankOrder(rank: string | undefined) {
+        switch (rank) {
+            case "I":
+                return 4;
+            case "II":
+                return 3;
+            case "III":
+                return 2;
+            case "IV":
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
+    function tierOrder(tier: string) {
+        switch (tier) {
+            case "CHALLENGER":
+                return 8;
+                break;
+            case "GRANDMASTER":
+                return 7;
+                break;
+            case "MASTER":
+                return 6;
+                break;
+            case "DIAMOND":
+                return 5;
+                break;
+            case "EMERALD":
+                return 4;
+                break;
+            case "PLATINUM":
+                return 3;
+                break;
+            case "GOLD":
+                return 2;
+                break;
+            case "SILVER":
+                return 1;
+                break;
+            case "BRONZE":
+                return 0;
+                break;
+            case "IRON":
+                return -1;
+                break;
+            default:
+                return -2;
+                break;
         }
     }
 </script>
@@ -274,7 +400,7 @@
         {/each}
     </div>
 {:else}
-    <div class="w-screen h-screen flex flex-row justify-center items-center">
+    <div class="w-screen h-screen flex flex-col justify-center items-center">
         <p class="text-3xl font-mono text-purple font-bold">
             {#if status === "searching"}
                 Looking for the next game
@@ -289,6 +415,34 @@
                 Offline
             {/if}
         </p>
+
+        <p class="text-2xl font-mono text-purple font-bold mt-8">History</p>
+
+        <div
+            class="w-full flex flex-row items-center justify-center font-mono gap-4"
+        >
+            {#each historyData as entry}
+                <div
+                    class="flex flex-col items-center justify-center p-2 bg-opacity-20"
+                    class:bg-pink={entry.lpDelta > 0}
+                    class:bg-red-400={entry.lpDelta < 0}
+                >
+                    <div class="w-16">
+                        <RankDisplay
+                            size="xsmall"
+                            leagueEntry={entry.leagueEntry}
+                        />
+                    </div>
+                    <span
+                        class="font-bold"
+                        class:text-pink={entry.lpDelta > 0}
+                        class:text-red-400={entry.lpDelta < 0}
+                    >
+                        {entry.lpDelta > 0 ? "+" : ""}{entry.lpDelta}
+                    </span>
+                </div>
+            {/each}
+        </div>
     </div>
 {/if}
 

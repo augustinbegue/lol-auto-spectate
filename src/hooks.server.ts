@@ -5,6 +5,8 @@ import { TwitchBot } from "$lib/server/twitch-bot";
 import { OBSController } from "$lib/server/obs-controller";
 import { Logger } from "tslog";
 
+import "dotenv/config";
+
 const log = new Logger({ name: "hooks", prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t", });
 
 let lolSpectator: LolSpectator;

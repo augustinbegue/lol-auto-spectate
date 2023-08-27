@@ -22,7 +22,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         if (participant) {
             if (!summonerEntries[participant.summonerId]) {
                 summonerEntries[participant.summonerId] = (
-                    await locals.lolSpectator.riot?.getLeagueEntryBySummonerId(
+                    await locals.lolSpectator.riot?.getLeagueEntriesBySummonerId(
+                        "EUW1",
                         participant.summonerId,
                     )
                 )?.find((e) => e.queueType == "RANKED_SOLO_5x5");
@@ -91,5 +92,76 @@ export const load: PageServerLoad = async ({ locals }) => {
         championsById,
         summonerSpellsById,
         runesReforgedById,
+        leagueHistory: [
+
+            {
+                leagueEntry: {
+                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
+                    queueType: 'RANKED_SOLO_5x5',
+                    tier: 'DIAMOND',
+                    rank: 'I',
+                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
+                    summonerName: 'Nomanz',
+                    leaguePoints: 68,
+                    wins: 81,
+                    losses: 67,
+                    veteran: false,
+                    inactive: false,
+                    freshBlood: false,
+                    hotStreak: false
+                }
+            },
+            {
+                leagueEntry: {
+                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
+                    queueType: 'RANKED_SOLO_5x5',
+                    tier: 'DIAMOND',
+                    rank: 'I',
+                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
+                    summonerName: 'Nomanz',
+                    leaguePoints: 95,
+                    wins: 82,
+                    losses: 67,
+                    veteran: false,
+                    inactive: false,
+                    freshBlood: false,
+                    hotStreak: false
+                }
+            },
+            {
+                leagueEntry: {
+                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
+                    queueType: 'RANKED_SOLO_5x5',
+                    tier: 'DIAMOND',
+                    rank: 'I',
+                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
+                    summonerName: 'Nomanz',
+                    leaguePoints: 100,
+                    wins: 82,
+                    losses: 68,
+                    veteran: false,
+                    inactive: false,
+                    freshBlood: false,
+                    hotStreak: false
+                }
+            },
+            {
+                leagueEntry: {
+                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
+                    queueType: 'RANKED_SOLO_5x5',
+                    tier: 'MASTER',
+                    rank: 'I',
+                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
+                    summonerName: 'Nomanz',
+                    leaguePoints: 6,
+                    wins: 83,
+                    losses: 68,
+                    veteran: false,
+                    inactive: false,
+                    freshBlood: false,
+                    hotStreak: false
+                }
+            }
+        ],
     };
 };

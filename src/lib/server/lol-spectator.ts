@@ -1,5 +1,5 @@
 import { RiotApiWrapper } from "lol-api-wrapper";
-import type { LeagueEntryDTO } from "lol-api-wrapper/types";
+import type { CurrentGameInfo, LeagueEntryDTO, SummonerDTO } from "lol-api-wrapper/types";
 import { Logger } from "tslog";
 import { LolController } from "./lol-controller";
 
@@ -11,10 +11,15 @@ const log = new Logger({
 export class LolSpectator extends LolController {
     riot: RiotApiWrapper | undefined;
     leagueEntry: LeagueEntryDTO | undefined;
+    leagueHistory: {
+        date: Date;
+        leagueEntry: LeagueEntryDTO;
+    }[] = [];
 
     currentTimeout: NodeJS.Timeout | null = null;
     timeoutInterval = 1000 * 5;
-    lastGameId = 0;
+
+    lastSpectatedGameId = 0;
 
     constructor(leagueFolderPath: string) {
         super(leagueFolderPath);
@@ -43,8 +48,10 @@ export class LolSpectator extends LolController {
             await this.exitSpectatorClient();
         }
 
-        let summoner = await this.riot.getSummonerByName("EUW1", summonerName);
-        if (!summoner) {
+        let summoner: SummonerDTO;
+        try {
+            summoner = await this.riot.getSummonerByName("EUW1", summonerName);
+        } catch (error) {
             log.error(
                 `Summoner ${summonerName} not found. Stopping lol-spectator`,
             );
@@ -83,7 +90,7 @@ export class LolSpectator extends LolController {
     async refreshLeagueEntry() {
         if (!this.summoner) {
             throw new Error(
-                `[lol-spectator]Summoner ${this.summoner} not found`,
+                `[lol-spectator] Summoner ${this.summoner} not found`,
             );
         }
 
@@ -95,6 +102,13 @@ export class LolSpectator extends LolController {
         this.leagueEntry = leagueEntries?.find(
             (e) => e.queueType == "RANKED_SOLO_5x5",
         );
+
+        if (this.leagueEntry) {
+            this.leagueHistory.push({
+                date: new Date(),
+                leagueEntry: this.leagueEntry,
+            });
+        }
     }
 
     private async checkForNewGame() {
@@ -107,41 +121,42 @@ export class LolSpectator extends LolController {
         }
 
         // Check if the summoner has a game in progress
-        let currentGame = await this.riot.getActiveGameBySummonerId("EUW1", this.summoner.id);
+        try {
+            let currentGame = await this.riot.getActiveGameBySummonerId("EUW1", this.summoner.id);
 
-        if (
-            currentGame &&
-            currentGame.gameId &&
-            currentGame.gameId != this.lastGameId
-        ) {
-            log.info(`onGameFound: ${currentGame.gameId}`);
-            this.emit("onGameFound", currentGame);
+            if (
+                currentGame &&
+                currentGame.gameId &&
+                currentGame.gameId != this.lastSpectatedGameId
+            ) {
+                log.info(`onGameFound: ${currentGame.gameId}`);
+                this.emit("onGameFound", currentGame);
 
-            // New game found
-            this.currentGame = currentGame;
-            this.lastGameId = currentGame.gameId;
+                // New game found
+                this.currentGame = currentGame;
+                this.lastSpectatedGameId = currentGame.gameId;
 
-            this.status = "loading";
+                this.status = "loading";
 
-            // Launch the spectator client
-            try {
-                await this.launchSpectatorClient();
+                // Launch the spectator client
+                try {
+                    await this.launchSpectatorClient();
 
-                // Game ended, refresh the league entry
-                await this.refreshLeagueEntry();
-            } catch (error) {
-                log.error(`Error launching spectator client. Retrying`, error);
+                    // Game ended, refresh the league entry
+                    await this.refreshLeagueEntry();
+                } catch (error) {
+                    log.error(`Error launching spectator client. Retrying`, error);
 
-                await this.exitSpectatorClient();
-                this.lastGameId = 0;
+                    await this.exitSpectatorClient();
+                    this.lastSpectatedGameId = 0;
+                }
             }
-        } else {
+        } catch (error) {
             log.info(`No game found`);
-
             this.status = "searching";
         }
 
-        if ((this.status as any) != "offline") {
+        if (this.status !== "offline") {
             this.currentTimeout = setTimeout(() => {
                 this.checkForNewGame();
             }, this.timeoutInterval);

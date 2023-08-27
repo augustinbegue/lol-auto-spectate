@@ -13,10 +13,12 @@ export const load: PageServerLoad = async ({ locals }) => {
             status: locals.lolSpectator.getStatus(),
         };
     }
+
     return {
         status: locals.lolSpectator.getStatus(),
         summoner: locals.lolSpectator.summoner,
         leagueEntry: locals.lolSpectator.leagueEntry,
+        leagueHistory: locals.lolSpectator.leagueHistory,
         lolpro: getSummoner(locals.lolSpectator.summoner.name),
         twitchBot: {
             voteInProgress: locals.twitchBot?.voteInProgress,
