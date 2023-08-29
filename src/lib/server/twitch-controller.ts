@@ -604,7 +604,20 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         }
 
         log.info(`Checking if summoner ${summonerName} exists`);
-        let summoner = await getSummoner(summonerName);
+
+        let summoner: CachedSummoner | null = null;
+
+        try {
+            summoner = await getSummoner(summonerName);
+        } catch (err) {
+            log.error(`Failed to get summoner ${summonerName}`, err);
+
+            this.client!.say(
+                target,
+                `@${context.username} Failed to get summoner "${summonerName}"`,
+            );
+            return;
+        }
 
         if (summoner === null) {
             this.client!.say(
