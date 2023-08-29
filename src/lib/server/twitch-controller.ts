@@ -585,6 +585,14 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             return;
         }
 
+        if (summonerName === this.currentSummonerName) {
+            this.client!.say(
+                target,
+                `@${context.username} Already spectating ${this.currentSummonerName}`,
+            );
+            return;
+        }
+
         if (this.voteInProgress) {
             this.client!.say(
                 target,

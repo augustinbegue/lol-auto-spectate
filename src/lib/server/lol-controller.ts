@@ -36,7 +36,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
     }
 
 
-    async launch(summoner: CachedSummoner, game: CurrentGameInfo) {
+    async launch(summoner: CachedSummoner, game: CurrentGameInfo, retry = 0) {
         this.gameEnded = false;
         this.summoner = summoner;
         this.currentGame = game;
@@ -51,7 +51,11 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                 // Game crashed
                 log.warn("Client crashed. Relaunching spectator client");
 
-                await this.launch(this.summoner, this.currentGame);
+                if (retry < 5) {
+                    await this.launch(this.summoner, this.currentGame, retry + 1);
+                } else {
+                    log.error("Failed to relaunch spectator client");
+                }
             } else {
                 log.info("Game ended. Not relaunching spectator client");
             }
