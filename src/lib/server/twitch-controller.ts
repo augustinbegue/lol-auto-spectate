@@ -435,8 +435,8 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             (p) => p.summonerName === summoner.name,
         )?.teamId;
 
-        let outcome1 = summonerTeam === 100 ? `${summoner.pro ? summoner.pro.name : summoner.name}'s Team (Blue Side)` : "Enemy Team (Blue Side)";
-        let outcome2 = summonerTeam === 200 ? `${summoner.pro ? summoner.pro.name : summoner.name}'s Team (Red Side)` : "Enemy Team (Red Side)";
+        let outcome1 = "Blue Side"
+        let outcome2 = "Red Side"
 
         const res = await this.twitchRequest(
             "POST",
