@@ -1,6 +1,6 @@
 <script lang="ts">
     import { invalidateAll } from "$app/navigation";
-    import type { LolProPlayer } from "$lib/server/lol-pros.js";
+    import type { CachedSummoner } from "$lib/server/utils/db.js";
     import { onDestroy, onMount } from "svelte";
     import { slide } from "svelte/transition";
 
@@ -66,7 +66,7 @@
             .length ?? 0;
 
     let interval: NodeJS.Timeout;
-    const lolproAccounts: { [key: string]: LolProPlayer } = {};
+    const accounts: { [key: string]: CachedSummoner } = {};
     onMount(async () => {
         console.log(data);
 
@@ -81,18 +81,18 @@
             });
 
             for (const summonerName of summonerNames) {
-                const res = await fetch(`/api/lolpros/${summonerName}`, {
+                const res = await fetch(`/api/summoner/${summonerName}`, {
                     method: "GET",
                 });
 
                 if (res.ok) {
-                    const lpro = (await res.json()) as LolProPlayer;
+                    const lpro = (await res.json()) as CachedSummoner;
 
-                    lolproAccounts[summonerName] = lpro;
+                    accounts[summonerName] = lpro;
                 }
             }
 
-            console.log(lolproAccounts);
+            console.log(accounts);
         }
     });
 
@@ -275,19 +275,19 @@
                             class:text-white={player.summonerName !==
                                 data.targetSummonerName}
                         >
-                            {#if lolproAccounts[player.summonerName]}
+                            {#if accounts[player.summonerName]?.pro}
                                 <span>
                                     ({player.summonerName})
                                 </span>
                                 <img
                                     class="h-5 mx-1"
-                                    src="https://flagsapi.com/{lolproAccounts[
+                                    src="https://flagsapi.com/{accounts[
                                         player.summonerName
-                                    ].country}/flat/64.png"
-                                    alt="{lolproAccounts[player.summonerName]
-                                        .country} flag"
+                                    ].pro?.country}/flat/64.png"
+                                    alt="{accounts[player.summonerName].pro
+                                        ?.country} flag"
                                 />
-                                {lolproAccounts[player.summonerName].name}
+                                {accounts[player.summonerName].pro?.name}
                             {:else}
                                 <span>
                                     {player.summonerName}
@@ -309,15 +309,15 @@
                             class:text-white={player.summonerName !==
                                 data.targetSummonerName}
                         >
-                            {#if lolproAccounts[player.summonerName]}
-                                {lolproAccounts[player.summonerName].name}
+                            {#if accounts[player.summonerName]?.pro}
+                                {accounts[player.summonerName].pro?.name}
                                 <img
                                     class="h-5 mx-1"
-                                    src="https://flagsapi.com/{lolproAccounts[
+                                    src="https://flagsapi.com/{accounts[
                                         player.summonerName
-                                    ].country}/flat/64.png"
-                                    alt="{lolproAccounts[player.summonerName]
-                                        .country} flag"
+                                    ].pro?.country}/flat/64.png"
+                                    alt="{accounts[player.summonerName].pro
+                                        ?.country} flag"
                                 />
                                 <span>
                                     ({player.summonerName})

@@ -37,6 +37,8 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
     }
 
     async setSummoner(summoner: CachedSummoner) {
+        await this.stop();
+
         log.info(`Setting summoner to spectate: ${summoner.name}`);
         this.summoner = summoner;
         await refreshSummonerLeagueEntries(this.summoner.name);
@@ -54,7 +56,7 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         this.client.exit();
     }
 
-    private async checkForNewGame() {
+    async checkForNewGame() {
         if (!this.api) {
             throw new Error("[lol-spectator] Spectator not initialized");
         }

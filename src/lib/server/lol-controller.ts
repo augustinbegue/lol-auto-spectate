@@ -131,7 +131,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                 // Check for replay error
                 if ((data as string).includes("ERROR| ReplayDownloader")) {
                     // Kill the spectator client
-                    await this.exit();
+                    this.kill();
                     reject("Failed to download replay");
                 }
 

@@ -33,6 +33,8 @@
             for (let i = 1; i < data.leagueHistory.length; i++) {
                 const entry = data.leagueHistory[i];
 
+                console.log(entry);
+
                 let lpDelta = entry.leaguePoints - lastEntry.leaguePoints;
 
                 if (lpDelta != 0) {
@@ -83,6 +85,8 @@
     onMount(async () => {
         await fetchStatus();
         await fetchAccounts();
+
+        console.log(data.leagueHistory);
 
         interval = setInterval(async () => {
             await fetchStatus();
@@ -221,8 +225,12 @@
                             data.currentSummoner?.name}
                         class:border-t-gray={summonerEntry?.summonerName ===
                             data.currentSummoner?.name}
-                        class:border-t-purple={summonerEntry?.summonerName !==
-                            data.currentSummoner?.name}
+                        class:border-t-red-400={teamId === 200 &&
+                            summonerEntry?.summonerName !==
+                                data.currentSummoner?.name}
+                        class:border-t-blue-400={teamId === 100 &&
+                            summonerEntry?.summonerName !==
+                                data.currentSummoner?.name}
                     >
                         <div
                             class="flex flex-row items-center gap-4 text-sm xl:text-xl font-bold p-2"
@@ -266,8 +274,12 @@
                                 class="flex flex-row w-full h-1/4 p-4 justify-center items-center border-t-4"
                                 class:border-t-gray={summonerEntry?.summonerName ===
                                     data.currentSummoner?.name}
-                                class:border-t-purple={summonerEntry?.summonerName !==
-                                    data.currentSummoner?.name}
+                                class:border-t-red-400={teamId === 200 &&
+                                    summonerEntry?.summonerName !==
+                                        data.currentSummoner?.name}
+                                class:border-t-blue-400={teamId === 100 &&
+                                    summonerEntry?.summonerName !==
+                                        data.currentSummoner?.name}
                             >
                                 <RankDisplay
                                     size="xsmall"
@@ -303,8 +315,12 @@
                             class="flex flex-row w-full p-1 xl:p-4 justify-center gap-2 items-start border-t-4 text-sm xl:text-xl"
                             class:border-t-gray={summonerEntry?.summonerName ===
                                 data.currentSummoner?.name}
-                            class:border-t-purple={summonerEntry?.summonerName !==
-                                data.currentSummoner?.name}
+                            class:border-t-red-400={teamId === 200 &&
+                                summonerEntry?.summonerName !==
+                                    data.currentSummoner?.name}
+                            class:border-t-blue-400={teamId === 100 &&
+                                summonerEntry?.summonerName !==
+                                    data.currentSummoner?.name}
                         >
                             {#if data.championsById[participant.championId]}
                                 <div class="flex flex-col items-center">

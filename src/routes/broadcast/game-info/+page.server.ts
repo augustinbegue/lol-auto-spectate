@@ -75,7 +75,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         }
     }
 
-    let leagueHistory = await getSummonerLeagueEntries(currentSummoner?.name!, 10);
+    let leagueHistory = (await getSummonerLeagueEntries(currentSummoner?.name!, 10)).reverse();
 
     return {
         currentSummoner,
