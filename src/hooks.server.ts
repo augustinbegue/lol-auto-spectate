@@ -1,17 +1,21 @@
 import { LolSpectator } from "$lib/server/lol-spectator";
 import type { Handle } from "@sveltejs/kit";
 import { findLeaguePath } from "$lib/server/utils/findLeaguePath";
-import { TwitchBot } from "$lib/server/twitch-bot";
+import { TwitchController } from "$lib/server/twitch-controller";
 import { OBSController } from "$lib/server/obs-controller";
 import { Logger } from "tslog";
 
 import "dotenv/config";
+import type { AutoSpectateStatus } from "./app";
+import { getMatch } from "$lib/server/utils/db";
 
 const log = new Logger({ name: "hooks", prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t", });
 
+
 let lolSpectator: LolSpectator;
-let twitchBot: TwitchBot;
+let twitchController: TwitchController;
 let obsController: OBSController;
+let status: AutoSpectateStatus = "offline";
 
 export const handle: Handle = async ({ event, resolve }) => {
     let lolSpectatorInitialized = true;
@@ -19,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         lolSpectatorInitialized = false;
 
         log.warn("lolSpectator not initialized, initializing...");
-        lolSpectator = new LolSpectator(findLeaguePath());
+        lolSpectator = new LolSpectator();
     }
 
     let obsControllerInitialized = true;
@@ -31,46 +35,73 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     let twitchBotInitialized = true;
-    if (!twitchBot) {
+    if (!twitchController) {
         twitchBotInitialized = false;
 
         log.warn("twitchBot not initialized, initializing...");
-        twitchBot = new TwitchBot();
-        twitchBot.currentSummonerName = lolSpectator.summoner?.name;
+        twitchController = new TwitchController();
+        twitchController.currentSummonerName = lolSpectator.summoner?.name;
     }
 
     event.locals.lolSpectator = lolSpectator;
     event.locals.obsController = obsController;
-    event.locals.twitchBot = twitchBot;
+    event.locals.twitchBot = twitchController;
+
+    if (status === "offline" && lolSpectator.summoner) {
+        status = "searching";
+    }
 
     // LolSpectator was not initialized, so we need to register the events
     if (!lolSpectatorInitialized) {
-        lolSpectator.on("onGameFound", async (game) => {
+        lolSpectator.on("onGameFound", async (summoner, game) => {
             log.info(`onGameFound: ${game.gameId}`);
 
-            if (twitchBot) {
+            if (twitchController) {
                 // Set currentSummonerName to enable votes on switch
-                twitchBot.currentSummonerName = lolSpectator.summoner?.name;
+                twitchController.currentSummonerName = lolSpectator.summoner?.name;
+
+                if (twitchController.authenticated)
+                    await twitchController.startPrediction(summoner, game);
             }
         });
 
-        lolSpectator.on("onGameStarted", async (game) => {
+        lolSpectator.client.on("onGameLoading", async (summoner, game, process) => {
+            log.info(`onGameLoading: ${game.gameId}`);
+            status = "loading";
+        });
+
+
+        lolSpectator.client.on("onGameStarted", async (summoner, game) => {
             log.info(`onGameStarted: ${game.gameId}`);
+            status = "ingame";
 
             if (obsController.connected) {
                 await obsController.setGameScene();
             }
         });
 
-        lolSpectator.on("onGameEnded", async (game) => {
+        lolSpectator.client.on("onGameEnded", async (summoner, game) => {
             log.info(`onGameEnded: ${game.gameId}`);
+            status = "searching";
+
+            const match = await getMatch(game.gameId);
 
             if (obsController.connected) {
                 await obsController.setWaitingScene();
             }
+
+            if (twitchController && twitchController.authenticated) {
+                await twitchController.startCommercial(180);
+
+                if (match) {
+                    await twitchController.endPrediction("RESOLVED", match);
+                } else {
+                    await twitchController.endPrediction("CANCELED");
+                }
+            }
         });
 
-        lolSpectator.on("onGameExited", async (game) => {
+        lolSpectator.client.on("onGameExited", async (summoner, game) => {
             log.info(`onGameExited: ${game.gameId}`);
 
             if (obsController.connected && !(await obsController.isWaitingScene())) {
@@ -84,11 +115,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     // Twitch bot was not initialized, so we need to register the events
     if (!twitchBotInitialized) {
-        twitchBot.on("onSwitch", async (summonerName) => {
-            await lolSpectator.stop();
-            await lolSpectator.start(summonerName);
+        twitchController.on("onSwitch", async (summoner) => {
+            await lolSpectator.setSummoner(summoner);
         });
     }
+
+    event.locals.status = status;
 
     return resolve(event);
 };

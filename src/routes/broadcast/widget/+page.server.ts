@@ -1,4 +1,5 @@
-import { getSummoner } from "$lib/server/lol-pros";
+import { getSummoner, getSummonerLeagueEntries } from "$lib/server/utils/db";
+import prisma from "$lib/server/utils/prisma";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -10,16 +11,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     if (!locals.lolSpectator.summoner) {
         return {
-            status: locals.lolSpectator.getStatus(),
+            status: locals.status ?? "offline",
         };
     }
 
     return {
-        status: locals.lolSpectator.getStatus(),
+        status: locals.status,
         summoner: locals.lolSpectator.summoner,
-        leagueEntry: locals.lolSpectator.leagueEntry,
-        leagueHistory: locals.lolSpectator.leagueHistory,
-        lolpro: getSummoner(locals.lolSpectator.summoner.name),
+        summonerLeagues: await prisma.league.findMany({
+            where: {
+                pros: {
+                    some: {
+                        id: locals.lolSpectator.summoner.pro?.id,
+                    },
+                },
+            },
+        }),
+        leagueEntry: (await getSummonerLeagueEntries(locals.lolSpectator.summoner.name, 1))[0],
+        leagueHistory: await getSummonerLeagueEntries(locals.lolSpectator.summoner.name, 10),
         twitchBot: {
             voteInProgress: locals.twitchBot?.voteInProgress,
             votes: locals.twitchBot?.votes,

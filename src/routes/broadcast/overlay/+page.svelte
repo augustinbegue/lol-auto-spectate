@@ -544,7 +544,7 @@
                                                         alt={item.displayName}
                                                     />
                                                     <span
-                                                        class="absolute left-[516px] inline-flex items-start justify-start w-8 h-8 text-xs"
+                                                        class="absolute left-[532px] inline-flex items-start justify-start w-8 h-8 text-xs"
                                                     >
                                                         <p
                                                             style="text-shadow: black 1px 0 10px;"
@@ -563,7 +563,7 @@
                                                 />
                                             {/if}
                                             <span
-                                                class="absolute left-[516px] inline-flex items-end justify-center w-8 h-8 font-semibold"
+                                                class="absolute left-[532px] inline-flex items-end justify-center w-8 h-8 font-semibold"
                                             >
                                                 <p
                                                     class="translate-y-1"
@@ -727,7 +727,7 @@
                                                         alt={item.displayName}
                                                     />
                                                     <span
-                                                        class="absolute right-[516px] inline-flex items-start justify-start w-8 h-8 text-xs"
+                                                        class="absolute right-[532px] inline-flex items-start justify-start w-8 h-8 text-xs"
                                                     >
                                                         <p
                                                             style="text-shadow: black 1px 0 10px;"
@@ -746,7 +746,7 @@
                                                 />
                                             {/if}
                                             <span
-                                                class="absolute right-[516px] inline-flex items-end justify-center w-8 h-8 font-semibold"
+                                                class="absolute right-[532px] inline-flex items-end justify-center w-8 h-8 font-semibold"
                                             >
                                                 <p
                                                     class="translate-y-1"

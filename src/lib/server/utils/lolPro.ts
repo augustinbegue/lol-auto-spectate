@@ -1,49 +1,21 @@
 import { error } from "@sveltejs/kit";
 
-const summoners: { [key: string]: LolProPlayer | null | undefined } = {
-    Sσreαnα: {
-        name: "Sardoche",
-        country: "FR",
-        social_media: {
-            twitter: "Sardoche_Lol",
-        },
-    },
-    lIlIlllIllIlII: {
-        name: "Sardoche",
-        country: "FR",
-        social_media: {
-            twitter: "Sardoche_Lol",
-        },
-    },
-    "500 or Nothing": {
-        name: "Sardoche",
-        country: "FR",
-        social_media: {
-            twitter: "Sardoche_Lol",
-        },
-    },
-};
+export async function getLolProSummoner(summonerName: string) {
+    let res = await fetch(
+        `https://api.lolpros.gg/es/search?query=${summonerName.trim()}&active=true`,
+    );
 
-export async function getSummoner(summonerName: string) {
-    if (summoners[summonerName] === undefined) {
-        let res = await fetch(
-            `https://api.lolpros.gg/es/search?query=${summonerName.trim()}&active=true`,
-        );
-
-        if (!res.ok) {
-            throw error(res.status, res.statusText);
-        }
-
-        let data = (await res.json()) as LolProPlayer[];
-
-        if (data.length === 0) {
-            summoners[summonerName] = null;
-        }
-
-        summoners[summonerName] = data[0];
+    if (!res.ok) {
+        throw error(res.status, res.statusText);
     }
 
-    return summoners[summonerName];
+    let data = (await res.json()) as LolProPlayer[];
+
+    if (data.length === 0) {
+        return null;
+    }
+
+    return data[0];
 }
 
 export interface LolProPlayer {

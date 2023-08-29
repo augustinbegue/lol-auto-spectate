@@ -3,14 +3,14 @@ import type { PageServerLoad } from "./$types";
 import champions from "../../../../static/assets/datadragon/data/en_GB/champion.json";
 import summoner from "../../../../static/assets/datadragon/data/en_GB/summoner.json";
 import runesReforged from "../../../../static/assets/datadragon/data/en_GB/runesReforged.json";
-
-const summonerEntries: { [key: string]: LeagueEntryDTO | undefined } = {};
+import { getSummonerLeagueEntries } from "$lib/server/utils/db";
+import type { LeagueEntries } from "@prisma/client";
 
 export const load: PageServerLoad = async ({ locals }) => {
-    const currentGame = locals.lolSpectator.currentGame;
+    const currentGame = locals.lolSpectator.client.currentGame;
     const currentSummoner = locals.lolSpectator.summoner;
     const currentGameSummonerEntries: {
-        [key: string]: LeagueEntryDTO | undefined;
+        [key: string]: LeagueEntries | undefined;
     } = {};
     const championsById: { [key: string]: any } = {};
     const summonerSpellsById: { [key: string]: any } = {};
@@ -20,17 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         const participant = currentGame?.participants[i];
 
         if (participant) {
-            if (!summonerEntries[participant.summonerId]) {
-                summonerEntries[participant.summonerId] = (
-                    await locals.lolSpectator.riot?.getLeagueEntriesBySummonerId(
-                        "EUW1",
-                        participant.summonerId,
-                    )
-                )?.find((e) => e.queueType == "RANKED_SOLO_5x5");
-            }
-
-            currentGameSummonerEntries[participant.summonerId] =
-                summonerEntries[participant.summonerId];
+            currentGameSummonerEntries[participant.summonerId] = (await getSummonerLeagueEntries(participant.summonerName, 1))[0];
         }
 
         if (participant?.championId) {
@@ -85,6 +75,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         }
     }
 
+    let leagueHistory = await getSummonerLeagueEntries(currentSummoner?.name!, 10);
+
     return {
         currentSummoner,
         currentGame,
@@ -92,76 +84,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         championsById,
         summonerSpellsById,
         runesReforgedById,
-        leagueHistory: [
-
-            {
-                leagueEntry: {
-                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
-                    queueType: 'RANKED_SOLO_5x5',
-                    tier: 'DIAMOND',
-                    rank: 'I',
-                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
-                    summonerName: 'Nomanz',
-                    leaguePoints: 68,
-                    wins: 81,
-                    losses: 67,
-                    veteran: false,
-                    inactive: false,
-                    freshBlood: false,
-                    hotStreak: false
-                }
-            },
-            {
-                leagueEntry: {
-                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
-                    queueType: 'RANKED_SOLO_5x5',
-                    tier: 'DIAMOND',
-                    rank: 'I',
-                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
-                    summonerName: 'Nomanz',
-                    leaguePoints: 95,
-                    wins: 82,
-                    losses: 67,
-                    veteran: false,
-                    inactive: false,
-                    freshBlood: false,
-                    hotStreak: false
-                }
-            },
-            {
-                leagueEntry: {
-                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
-                    queueType: 'RANKED_SOLO_5x5',
-                    tier: 'DIAMOND',
-                    rank: 'I',
-                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
-                    summonerName: 'Nomanz',
-                    leaguePoints: 100,
-                    wins: 82,
-                    losses: 68,
-                    veteran: false,
-                    inactive: false,
-                    freshBlood: false,
-                    hotStreak: false
-                }
-            },
-            {
-                leagueEntry: {
-                    leagueId: '82bb1a7f-53b2-3c02-af58-458082cd4a7c',
-                    queueType: 'RANKED_SOLO_5x5',
-                    tier: 'MASTER',
-                    rank: 'I',
-                    summonerId: 'FX4iZ2PHwWeiomrYPZN0UC6B7_5df2EmmnX9m-YwmnT92Rk',
-                    summonerName: 'Nomanz',
-                    leaguePoints: 6,
-                    wins: 83,
-                    losses: 68,
-                    veteran: false,
-                    inactive: false,
-                    freshBlood: false,
-                    hotStreak: false
-                }
-            }
-        ],
+        leagueHistory
     };
 };

@@ -2,8 +2,6 @@ import { error, json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import farsight, { type GameObject } from "@larseble/farsight";
 
-import items from "../../../../../../static/assets/datadragon/data/en_GB/item.json";
-
 export const GET: RequestHandler = async ({ locals, fetch }) => {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 

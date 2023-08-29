@@ -1,5 +1,5 @@
 import { LolSpectator } from "$lib/server/lol-spectator";
-import { TwitchBot } from "$lib/server/twitch-bot";
+import { TwitchController } from "$lib/server/twitch-controller";
 import { OBSController } from "$lib/server/obs-controller";
 
 // See https://kit.svelte.dev/docs/types#app
@@ -9,12 +9,15 @@ declare global {
         // interface Error {}
         interface Locals {
             obsController: OBSController | null;
-            twitchBot: TwitchBot | null;
+            twitchBot: TwitchController | null;
             lolSpectator: LolSpectator;
+            status: AutoSpectateStatus;
         }
         // interface PageData {}
         // interface Platform {}
     }
 }
 
-export {};
+export { };
+
+export type AutoSpectateStatus = "offline" | "ingame" | "loading" | "searching";

@@ -4,15 +4,15 @@
     import RankDisplay from "$lib/display/summonerEntry/RankDisplay.svelte";
     import { invalidateAll } from "$app/navigation";
     import { slide } from "svelte/transition";
-    import type { LolProPlayer } from "$lib/server/lol-pros";
-    import type { LeagueEntryDTO, LeagueTier } from "lol-api-wrapper/types";
+    import type { CachedSummoner } from "$lib/server/utils/db";
+    import type { LeagueEntries } from "@prisma/client";
 
     export let data: PageData;
 
     let status: string;
     let interval: NodeJS.Timeout;
 
-    const lolproAccounts: { [key: string]: LolProPlayer } = {};
+    const accounts: { [key: string]: CachedSummoner } = {};
 
     $: summonerNames = data.currentGame?.participants.map(
         (p) => p.summonerName,
@@ -22,7 +22,7 @@
         result: "win" | "loss";
         lpDelta: number;
         date: Date;
-        leagueEntry: LeagueEntryDTO;
+        leagueEntry: LeagueEntries;
     }[];
 
     $: {
@@ -33,53 +33,43 @@
             for (let i = 1; i < data.leagueHistory.length; i++) {
                 const entry = data.leagueHistory[i];
 
-                let lpDelta =
-                    entry.leagueEntry.leaguePoints -
-                    lastEntry.leagueEntry.leaguePoints;
+                let lpDelta = entry.leaguePoints - lastEntry.leaguePoints;
 
                 if (lpDelta != 0) {
-                    if (entry.leagueEntry.tier != lastEntry.leagueEntry.tier) {
-                        if (
-                            tierOrder(entry.leagueEntry.tier) >
-                            tierOrder(lastEntry.leagueEntry.tier)
-                        ) {
+                    if (entry.tier != lastEntry.tier) {
+                        if (tierOrder(entry.tier) > tierOrder(lastEntry.tier)) {
                             lpDelta += 100;
                         } else {
                             lpDelta -= 100;
                         }
                     }
 
-                    if (entry.leagueEntry.rank != lastEntry.leagueEntry.rank) {
-                        if (
-                            rankOrder(entry.leagueEntry.rank) >
-                            rankOrder(lastEntry.leagueEntry.rank)
-                        ) {
+                    if (entry.rank != lastEntry.rank) {
+                        if (rankOrder(entry.rank) > rankOrder(lastEntry.rank)) {
                             lpDelta += 100;
                         } else {
                             lpDelta -= 100;
                         }
                     }
 
-                    if (entry.leagueEntry.wins > lastEntry.leagueEntry.wins) {
+                    if (entry.wins > lastEntry.wins) {
                         historyData = [
                             ...historyData,
                             {
                                 result: "win",
                                 lpDelta,
                                 date: new Date(entry.date),
-                                leagueEntry: entry.leagueEntry,
+                                leagueEntry: entry,
                             },
                         ];
-                    } else if (
-                        entry.leagueEntry.losses > lastEntry.leagueEntry.losses
-                    ) {
+                    } else if (entry.losses > lastEntry.losses) {
                         historyData = [
                             ...historyData,
                             {
                                 result: "loss",
                                 lpDelta,
                                 date: new Date(entry.date),
-                                leagueEntry: entry.leagueEntry,
+                                leagueEntry: entry,
                             },
                         ];
                     }
@@ -92,7 +82,7 @@
 
     onMount(async () => {
         await fetchStatus();
-        await fetchLolProAccounts();
+        await fetchAccounts();
 
         interval = setInterval(async () => {
             await fetchStatus();
@@ -104,17 +94,17 @@
         clearInterval(interval);
     });
 
-    async function fetchLolProAccounts() {
+    async function fetchAccounts() {
         if (summonerNames) {
             for (const summonerName of summonerNames) {
-                const res = await fetch(`/api/lolpros/${summonerName}`, {
+                const res = await fetch(`/api/summoner/${summonerName}`, {
                     method: "GET",
                 });
 
                 if (res.ok) {
-                    const lpro = (await res.json()) as LolProPlayer;
+                    const lpro = (await res.json()) as CachedSummoner;
 
-                    lolproAccounts[summonerName] = lpro;
+                    accounts[summonerName] = lpro;
                 }
             }
         }
@@ -126,7 +116,7 @@
 
         if (status !== json.status) {
             await invalidateAll();
-            await fetchLolProAccounts();
+            await fetchAccounts();
         }
 
         status = json.status;
@@ -244,22 +234,21 @@
                                 )}
                                 alt=""
                             />
-                            {#if lolproAccounts[participant.summonerName]}
+                            {#if accounts[participant.summonerName].pro !== null}
                                 <div class="flex flex-col">
                                     <span
                                         class="flex flex-row justify-center items-center gap-1"
                                     >
-                                        {lolproAccounts[
-                                            participant.summonerName
-                                        ].name}
+                                        {accounts[participant.summonerName].pro
+                                            ?.name}
                                         <img
                                             class="h-5 mx-1"
-                                            src="https://flagsapi.com/{lolproAccounts[
+                                            src="https://flagsapi.com/{accounts[
                                                 participant.summonerName
-                                            ].country}/flat/64.png"
-                                            alt="{lolproAccounts[
+                                            ].pro?.country}/flat/64.png"
+                                            alt="{accounts[
                                                 participant.summonerName
-                                            ].country} flag"
+                                            ].pro?.country} flag"
                                         />
                                     </span>
                                     <span class="font-normal">
@@ -416,33 +405,35 @@
             {/if}
         </p>
 
-        <p class="text-2xl font-mono text-purple font-bold mt-8">History</p>
+        {#if status != "offline"}
+            <p class="text-2xl font-mono text-purple font-bold mt-8">History</p>
 
-        <div
-            class="w-full flex flex-row items-center justify-center font-mono gap-4"
-        >
-            {#each historyData as entry}
-                <div
-                    class="flex flex-col items-center justify-center p-2 bg-opacity-20"
-                    class:bg-pink={entry.lpDelta > 0}
-                    class:bg-red-400={entry.lpDelta < 0}
-                >
-                    <div class="w-16">
-                        <RankDisplay
-                            size="xsmall"
-                            leagueEntry={entry.leagueEntry}
-                        />
-                    </div>
-                    <span
-                        class="font-bold"
-                        class:text-pink={entry.lpDelta > 0}
-                        class:text-red-400={entry.lpDelta < 0}
+            <div
+                class="w-full flex flex-row items-center justify-center font-mono text-white gap-4"
+            >
+                {#each historyData.slice(historyData.length - 10) as entry}
+                    <div
+                        class="flex flex-col items-center justify-center p-2 bg-opacity-20"
+                        class:bg-pink={entry.lpDelta > 0}
+                        class:bg-red-400={entry.lpDelta < 0}
                     >
-                        {entry.lpDelta > 0 ? "+" : ""}{entry.lpDelta}
-                    </span>
-                </div>
-            {/each}
-        </div>
+                        <div class="w-16">
+                            <RankDisplay
+                                size="xsmall"
+                                leagueEntry={entry.leagueEntry}
+                            />
+                        </div>
+                        <span
+                            class="font-bold"
+                            class:text-pink={entry.lpDelta > 0}
+                            class:text-red-400={entry.lpDelta < 0}
+                        >
+                            {entry.lpDelta > 0 ? "+" : ""}{entry.lpDelta}
+                        </span>
+                    </div>
+                {/each}
+            </div>
+        {/if}
     </div>
 {/if}
 

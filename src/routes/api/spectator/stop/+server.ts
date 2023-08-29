@@ -10,7 +10,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
     return json({
         success: true,
-        status: locals.lolSpectator.getStatus(),
+        status: locals.status,
         summoner: locals.lolSpectator.summoner,
     });
 };

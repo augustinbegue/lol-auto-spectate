@@ -1,3 +1,5 @@
+import { getSummoner, type CachedSummoner } from "$lib/server/utils/db";
+import prisma from "$lib/server/utils/prisma";
 import type { RequestHandler } from "./$types";
 import { error, json } from "@sveltejs/kit";
 
@@ -17,20 +19,24 @@ export const POST: RequestHandler = async ({ locals, request }) => {
     }
 
     try {
-        await locals.lolSpectator.init();
-
         if (obsControl) {
             await locals.obsController.setup();
         }
 
-        await locals.lolSpectator.start(summonerName);
+        const summoner = await getSummoner(summonerName);
+
+        if (!summoner) {
+            throw error(404, "Summoner not found");
+        }
+
+        await locals.lolSpectator.setSummoner(summoner);
     } catch (err) {
         throw error(500, (err as any).message);
     }
 
     return json({
         success: true,
-        status: locals.lolSpectator.getStatus(),
+        status: locals.status,
         summoner: locals.lolSpectator.summoner,
     });
 };

@@ -23,21 +23,21 @@
         sessionHistory = [];
 
         if (data.leagueHistory) {
-            let previousEntry = data.leagueHistory[0]?.leagueEntry;
+            let previousEntry = data.leagueHistory[0];
             for (let i = 1; i < data.leagueHistory.length; i++) {
                 if (previousEntry) {
-                    const entry = data.leagueHistory[i].leagueEntry;
+                    const entry = data.leagueHistory[i];
 
                     if (entry.wins > previousEntry.wins) {
                         sessionWins++;
-                        sessionHistory = ["W", ...sessionHistory];
+                        sessionHistory = [...sessionHistory, "W"];
                     } else if (entry.losses > previousEntry.losses) {
                         sessionLosses++;
-                        sessionHistory = ["L", ...sessionHistory];
+                        sessionHistory = [...sessionHistory, "L"];
                     }
                 }
 
-                previousEntry = data.leagueHistory[i].leagueEntry;
+                previousEntry = data.leagueHistory[i];
             }
         }
     }
@@ -142,25 +142,26 @@
                         </p>
                     </div>
                     <div id="summoner">
-                        {#if data.lolpro}
+                        {#if data.summoner?.pro}
                             <p class="lolpro-info">
                                 {data.summoner?.name}
                             </p>
                             <p class="lolpro-name">
                                 <img
-                                    src="https://flagsapi.com/{data.lolpro
-                                        .country}/flat/64.png"
+                                    src="https://flagsapi.com/{data.summoner.pro
+                                        ?.country}/flat/64.png"
+                                    alt={data.summoner.pro.country}
                                 />
-                                {data.lolpro?.name}
+                                {data.summoner.pro?.name}
                             </p>
                             <p class="lolpro-info">
-                                {#if data.lolpro?.leagues?.length || 0 > 0}
-                                    {data.lolpro?.leagues
+                                {#if data.summonerLeagues.length ?? 0 > 0}
+                                    {data.summonerLeagues
                                         ?.map((league) => league.shorthand)
                                         .join(", ")} |
                                 {/if}
-                                {#if data.lolpro?.social_media?.twitter}
-                                    @{data.lolpro?.social_media?.twitter}
+                                {#if data.summoner.pro?.social_twitter}
+                                    @{data.summoner.pro?.social_twitter}
                                 {/if}
                             </p>
                         {:else}
@@ -190,26 +191,26 @@
                     </div>
                 {:else}
                     <div id="summoner">
-                        {#if data.lolpro}
+                        {#if data.summoner?.pro}
                             <p class="lolpro-info">
                                 {data.summoner?.name}
                             </p>
                             <p class="lolpro-name">
                                 <img
-                                    src="https://flagsapi.com/{data.lolpro
-                                        .country}/flat/64.png"
-                                    alt={data.lolpro.country}
+                                    src="https://flagsapi.com/{data.summoner.pro
+                                        ?.country}/flat/64.png"
+                                    alt={data.summoner.pro.country}
                                 />
-                                {data.lolpro?.name}
+                                {data.summoner.pro?.name}
                             </p>
                             <p class="lolpro-info">
-                                {#if data.lolpro?.leagues?.length || 0 > 0}
-                                    {data.lolpro?.leagues
+                                {#if data.summonerLeagues.length ?? 0 > 0}
+                                    {data.summonerLeagues
                                         ?.map((league) => league.shorthand)
                                         .join(", ")} |
                                 {/if}
-                                {#if data.lolpro?.social_media?.twitter}
-                                    @{data.lolpro?.social_media?.twitter}
+                                {#if data.summoner.pro?.social_twitter}
+                                    @{data.summoner.pro?.social_twitter}
                                 {/if}
                             </p>
                         {:else}
@@ -234,7 +235,7 @@
                         <p>
                             {sessionWins}W {sessionLosses}L {#if sessionWins + sessionLosses != 0}({sessionWinrate}%)
                             {/if} |
-                            {#each sessionHistory as r}
+                            {#each sessionHistory.slice(sessionHistory.length - 10) as r}
                                 <p class={r}>
                                     {r}
                                 </p>

@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Summoner {
+  name          String          @id @unique
+  accountId     String
+  id            String
+  puuid         String
+  profileIconId Int
+  summonerLevel Int
+  revisionDate  DateTime
+  pro           Pro?            @relation(fields: [proId], references: [id])
+  proId         Int?
+  LeagueEntries LeagueEntries[]
+  Match         Match[]
+}
+
+model LeagueEntries {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @default(now())
+  leagueId     String
+  queueType    String
+  tier         String
+  rank         String
+  summoner     Summoner @relation(fields: [summonerName], references: [name])
+  summonerName String
+  leaguePoints Int
+  wins         Int
+  losses       Int
+  veteran      Boolean
+  inactive     Boolean
+  freshBlood   Boolean
+  hotStreak    Boolean
+}
+
+model Pro {
+  id             Int        @id @default(autoincrement())
+  name           String     @unique
+  lproSlug       String?
+  social_twitter String?
+  country        String?
+  summoners      Summoner[]
+  leagues        League[]
+}
+
+model League {
+  id        String @id @unique
+  name      String
+  lproSlug  String
+  shorthand String
+  pros      Pro[]
+}
+
+model Match {
+  id           String    @id @unique
+  gameCreation DateTime
+  summoner     Summoner? @relation(fields: [summonerName], references: [name])
+  summonerName String?
+  data         String
+}

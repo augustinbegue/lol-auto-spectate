@@ -3,8 +3,10 @@ import type TypedEmitter from "typed-emitter";
 import { EventEmitter } from "node:events";
 import tmi, { type Options, type CommonUserstate, client } from "tmi.js";
 import { Logger } from "tslog";
-import { getSummoner } from "./lol-pros";
 import { RiotApiWrapper } from "lol-api-wrapper";
+import { getSummoner, type CachedSummoner } from "./utils/db";
+import type { LeagueEntries, Match, Pro, Summoner } from "@prisma/client";
+import type { CurrentGameInfo, MatchDTO } from "lol-api-wrapper/types";
 
 const log = new Logger({
     name: "twitch-bot",
@@ -12,16 +14,18 @@ const log = new Logger({
 });
 
 type TwitchBotEvents = {
-    onSwitch: (summonerName: string) => void;
+    onSwitch: (summoner: CachedSummoner) => void;
 };
 
-export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBotEvents>) {
+export class TwitchController extends (EventEmitter as new () => TypedEmitter<TwitchBotEvents>) {
     riot: RiotApiWrapper | undefined;
     authenticated = false;
     scopes = [
         "moderator:manage:announcements",
         "moderator:manage:banned_users",
+        "channel:edit:commercial",
         "channel:manage:broadcast",
+        "channel:manage:predictions",
         "chat:read",
         "chat:edit",
     ];
@@ -44,8 +48,8 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
     constructor() {
         super();
 
-        this.on("onSwitch", async (summonerName) => {
-            await this.chatAnnouncement(`Switching to ${summonerName}`);
+        this.on("onSwitch", async (summoner) => {
+            await this.chatAnnouncement(`Switching to ${this.voteSummonerDisplayName}`);
 
             await this.updateStream({
                 title: process.env.TWITCH_STREAM_TITLE?.replace(
@@ -54,7 +58,9 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
                 ),
             });
 
-            this.currentSummonerName = summonerName;
+            await this.endPrediction("CANCELED");
+
+            this.currentSummonerName = summoner.name;
         });
     }
 
@@ -189,32 +195,36 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
                 `Failed to make Twitch request to: ${res.status} ${res.statusText
                 } ${await res.text()}`,
             );
-            console.log(method, endpoint, headers, body);
         }
 
         return res;
     }
 
+    userCache: { [key: string]: any } = {};
     private async getUser(username: string) {
-        const res = await this.twitchRequest(
-            "GET",
-            `helix/users?login=${username}`,
-            {},
-            undefined,
-        );
-
-        if (!res.ok) {
-            throw new Error(
-                `[twitch-bot] Failed to get user ${username}: ${res.status} ${res.statusText}`,
+        if (!this.userCache[username]) {
+            const res = await this.twitchRequest(
+                "GET",
+                `helix/users?login=${username}`,
+                {},
+                undefined,
             );
+
+            if (!res.ok) {
+                throw new Error(
+                    `[twitch-bot] Failed to get user ${username}: ${res.status} ${res.statusText}`,
+                );
+            }
+
+            const json = await res.json();
+            if (!json.data || json.data.length === 0) {
+                return null;
+            }
+
+            this.userCache[username] = json.data[0];
         }
 
-        const json = await res.json();
-        if (!json.data || json.data.length === 0) {
-            return null;
-        }
-
-        return json.data[0];
+        return this.userCache[username];
     }
 
     private async chatAnnouncement(message: string) {
@@ -323,6 +333,200 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
         }
     }
 
+    commercial_retry_date = Date.now();
+    async startCommercial(duration: number) {
+        if (!this.twitchUser) {
+            this.twitchUser = await this.getUser(
+                process.env.TWITCH_CHANNEL ?? "",
+            );
+
+            if (!this.twitchUser) {
+                throw new Error(
+                    "[twitch-bot] Failed to get Twitch user for commercial",
+                );
+            }
+
+            if (!duration) {
+                throw new Error(
+                    "[twitch-bot] Failed to get duration for commercial",
+                );
+            }
+
+            if (this.commercial_retry_date > Date.now()) {
+                log.warn(
+                    `Commercial already in progress. Next commercial: ${Math.round(
+                        (this.commercial_retry_date - Date.now()) / 1000,
+                    )}s`,
+                );
+                return false;
+            }
+
+            const res = await this.twitchRequest(
+                "POST",
+                "helix/channels/commercial",
+                {
+                    "Content-Type": "application/json",
+                },
+                JSON.stringify({
+                    broadcaster_id: this.twitchUser.id,
+                    length: duration,
+                }),
+            );
+
+            if (res.ok) {
+                const data = await res.json();
+
+                log.info(`Started commercial for ${duration}s. Next commercial: ${data.data[0].retry_after}s`);
+                this.commercial_retry_date = new Date(Date.now() + data.data[0].retry_after * 1000).getTime();
+
+                return true;
+            } else {
+                log.error(`Failed to start commercial: ${res.status} ${res.statusText}`);
+                return false;
+            }
+        }
+    }
+
+    async getLastPrediction() {
+        const twitchUser = await this.getUser(process.env.TWITCH_CHANNEL ?? "");
+
+        if (!twitchUser) {
+            throw new Error("[twitch-bot] Failed to get Twitch user");
+        }
+
+        const res = await this.twitchRequest(
+            "GET",
+            `helix/predictions?broadcaster_id=${twitchUser.id}&first=1`,
+            {},
+            undefined,
+        );
+
+        if (!res.ok) {
+            throw new Error(
+                `[twitch-bot] Failed to get last prediction: ${res.status} ${res.statusText}`,
+            );
+        }
+
+        const json = await res.json();
+
+        if (!json.data || json.data.length === 0) {
+            return null;
+        }
+
+        return json.data[0];
+    }
+
+    async startPrediction(summoner: CachedSummoner, game: CurrentGameInfo) {
+        const lastPrediction = await this.getLastPrediction();
+
+        if (lastPrediction && (lastPrediction.status === "ACTIVE" || lastPrediction.status === "LOCKED")) {
+            log.warn(`Prediction already in progress, cancelling it.`);
+
+            await this.endPrediction("CANCELED");
+        }
+
+        const twitchUser = await this.getUser(process.env.TWITCH_CHANNEL ?? "");
+
+        if (!twitchUser) {
+            throw new Error("[twitch-bot] Failed to get Twitch user");
+        }
+
+        let summonerTeam = game.participants.find(
+            (p) => p.summonerName === summoner.name,
+        )?.teamId;
+
+        let outcome1 = summonerTeam === 100 ? `${summoner.pro ? summoner.pro.name : summoner.name}'s Team (Blue Side)` : "Enemy Team (Blue Side)";
+        let outcome2 = summonerTeam === 200 ? `${summoner.pro ? summoner.pro.name : summoner.name}'s Team (Red Side)` : "Enemy Team (Red Side)";
+
+        const res = await this.twitchRequest(
+            "POST",
+            `helix/predictions`,
+            {
+                "Content-Type": "application/json",
+            },
+            JSON.stringify({
+                broadcaster_id: twitchUser.id,
+                title: "Who will win this game?",
+                outcomes: [
+                    {
+                        title: outcome1,
+                    },
+                    {
+                        title: outcome2,
+                    },
+                ],
+                prediction_window: 180,
+            }),
+        );
+
+        if (!res.ok) {
+            log.error(
+                `Failed to start prediction: ${res.status} ${res.statusText}`,
+            );
+        }
+
+        const json = await res.json();
+
+        if (!json.data || json.data.length === 0) {
+            return null;
+        }
+
+        return json.data[0];
+    }
+
+    async endPrediction(status: "RESOLVED" | "CANCELED", match?: Match) {
+        const lastPrediction = await this.getLastPrediction();
+
+        if (!lastPrediction || lastPrediction.status !== "ACTIVE" || lastPrediction.status !== "LOCKED") {
+            log.error(
+                `No prediction in progress.`,
+            );
+            return;
+        }
+
+        let winning_outcome_id: string | undefined;
+
+        if (status != "CANCELED") {
+            let winningTeam = (JSON.parse(match?.data ?? "{}") as MatchDTO).info.teams.find(t => t.win)?.teamId;
+
+            winning_outcome_id = winningTeam === 100 ? lastPrediction.outcomes[0].id : lastPrediction.outcomes[1].id;
+        }
+
+        const twitchUser = await this.getUser(process.env.TWITCH_CHANNEL ?? "");
+
+        if (!twitchUser) {
+            throw new Error("[twitch-bot] Failed to get Twitch user");
+        }
+
+        const res = await this.twitchRequest(
+            "PATCH",
+            `helix/predictions`,
+            {
+                "Content-Type": "application/json",
+            },
+            JSON.stringify({
+                broadcaster_id: twitchUser.id,
+                id: lastPrediction.id,
+                status,
+                winning_outcome_id,
+            }),
+        );
+
+        if (!res.ok) {
+            log.error(
+                `Failed to end prediction: ${res.status} ${res.statusText}`,
+            );
+        }
+
+        const json = await res.json();
+
+        if (!json.data || json.data.length === 0) {
+            return null;
+        }
+
+        return json.data[0];
+    }
+
     private async connectToChat(retry = false) {
         if (retry) {
             await this.refresh();
@@ -390,9 +594,9 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
         }
 
         log.info(`Checking if summoner ${summonerName} exists`);
-        let summonerId = await this.riot.getSummonerByName("EUW1", summonerName);
+        let summoner = await getSummoner(summonerName);
 
-        if (!summonerId) {
+        if (summoner === null) {
             this.client!.say(
                 target,
                 `@${context.username} Summoner "${summonerName}" not found`,
@@ -400,20 +604,19 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
             return;
         }
 
-        let newLolpro = await getSummoner(summonerId.name);
-
-        this.voteSummonerDisplayName = newLolpro
-            ? `${newLolpro.name} (${summonerId.name})`
-            : summonerId.name;
+        this.voteSummonerDisplayName = summoner.pro
+            ? `${summoner.pro.name} (${summoner.name})`
+            : summoner.name;
 
         if (!this.currentSummonerName) {
-            this.emit("onSwitch", summonerName);
+            this.emit("onSwitch", summoner);
             return;
         }
 
-        let oldLolpro = await getSummoner(this.currentSummonerName);
-        let oldSummonerName = oldLolpro
-            ? `${oldLolpro.name} (${this.currentSummonerName})`
+        let oldSummoner = await getSummoner(this.currentSummonerName);
+
+        let oldSummonerName = oldSummoner!.pro
+            ? `${oldSummoner!.pro.name} (${this.currentSummonerName})`
             : this.currentSummonerName;
 
         log.info(`Starting vote to switch to ${this.voteSummonerDisplayName}`);
@@ -449,7 +652,7 @@ export class TwitchBot extends (EventEmitter as new () => TypedEmitter<TwitchBot
             const noVotes = this.votes["!no"] || 0;
 
             if (yesVotes > noVotes) {
-                this.emit("onSwitch", summonerName);
+                this.emit("onSwitch", summoner!);
             } else {
                 await this.chatAnnouncement(
                     `Staying with ${oldSummonerName}. @${context.username} is muted for 5 minutes.`,

@@ -3,6 +3,6 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals }) => {
     return json({
-        status: locals.lolSpectator.getStatus() ?? "offline",
+        status: locals.status ?? "offline",
     });
 };

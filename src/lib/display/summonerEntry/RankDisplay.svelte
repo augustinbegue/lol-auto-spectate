@@ -1,7 +1,7 @@
 <script lang="ts">
-    import type { LeagueEntryDTO } from "lol-api-wrapper/types";
+    import type { LeagueEntries } from "@prisma/client";
 
-    export let leagueEntry: LeagueEntryDTO;
+    export let leagueEntry: LeagueEntries;
     export let size: "xsmall" | "small" | "medium" | "large" = "large";
 
     function rankToInt(rank: string | undefined) {

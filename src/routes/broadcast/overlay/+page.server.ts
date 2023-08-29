@@ -1,8 +1,8 @@
 import type { PageServerLoad } from "./$types";
-import type { LiveClientData } from "../../api/spectator/lol/liveclientdata/+server";
+import type { LiveClientData } from "../../api/spectator/client/livedata/+server";
 
 export const load: PageServerLoad = async ({ locals, fetch }) => {
-    const res = await fetch("/api/spectator/lol/liveclientdata", {
+    const res = await fetch("/api/spectator/client/livedata", {
         method: "GET",
     });
 

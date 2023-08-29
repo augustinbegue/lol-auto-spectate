@@ -5,6 +5,7 @@ import { ChildProcess, exec, execSync } from "node:child_process";
 import ks from "node-key-sender";
 import type { CurrentGameInfo, SummonerDTO } from "lol-api-wrapper/types";
 import { Logger } from "tslog";
+import type { CachedSummoner } from "./utils/db";
 
 const log = new Logger({
     name: "lol-controller",
@@ -12,19 +13,21 @@ const log = new Logger({
 });
 
 type LolControllerEvents = {
-    onGameFound: (game: CurrentGameInfo) => void;
-    onGameLoading: (game: CurrentGameInfo, process: ChildProcess) => void;
-    onGameStarted: (game: CurrentGameInfo) => void;
-    onGameEnded: (game: CurrentGameInfo) => void;
-    onGameExited: (game: CurrentGameInfo) => void;
+    onGameLoading: (summoner: CachedSummoner, game: CurrentGameInfo, process: ChildProcess) => void;
+    onGameStarted: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
+    onGameEnded: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
+    onGameExited: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
 };
 
 export class LolController extends (EventEmitter as new () => TypedEmitter<LolControllerEvents>) {
-    leagueFolderPath: string;
-    spectatorProcess: ChildProcess | null = null;
+    summoner: CachedSummoner | undefined;
+    currentGame: CurrentGameInfo | undefined;
+    summonerGameIndex: number | undefined;
 
-    protected status: "offline" | "ingame" | "loading" | "searching" =
-        "offline";
+    private leagueFolderPath: string;
+    private spectatorProcess: ChildProcess | null = null;
+
+    private gameEnded = false;
 
     constructor(leagueFolderPath: string) {
         super();
@@ -32,13 +35,54 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         this.leagueFolderPath = leagueFolderPath;
     }
 
-    summoner: SummonerDTO | undefined;
-    currentGame: CurrentGameInfo | undefined;
-    summonerGameIndex: number | undefined;
 
-    protected launchSpectatorClient() {
-        this.status = "loading";
+    async launch(summoner: CachedSummoner, game: CurrentGameInfo) {
+        this.gameEnded = false;
+        this.summoner = summoner;
+        this.currentGame = game;
 
+        try {
+            await this.exec();
+        } catch (error) {
+            log.warn(`Client exited with error: `, error)
+            this.kill();
+
+            if (!this.gameEnded) {
+                // Game crashed
+                log.warn("Client crashed. Relaunching spectator client");
+
+                await this.launch(this.summoner, this.currentGame);
+            } else {
+                log.info("Game ended. Not relaunching spectator client");
+            }
+        }
+    }
+
+    async exit() {
+        log.info("Exiting spectator client");
+
+        this.gameEnded = true;
+
+        if (this.spectatorProcess) {
+            this.kill();
+        }
+    }
+
+
+    private kill() {
+        this.emit("onGameExited", this.summoner!, this.currentGame!);
+
+        // Kill league of legends.exe
+        try {
+            execSync(`taskkill /F /IM "League of Legends.exe"`);
+        } catch (error) {
+            log.warn("Failed to kill League of Legends.exe");
+        }
+
+        this.spectatorProcess = null;
+    }
+
+    private exec() {
         if (!this.summoner) {
             throw new Error("[lol-controller] Summoner not found");
         }
@@ -59,8 +103,9 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
             this.emit(
                 "onGameLoading",
+                this.summoner!,
                 this.currentGame!,
-                this.spectatorProcess,
+                this.spectatorProcess!,
             );
 
             log.info(
@@ -72,19 +117,18 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                     `Spectator client exited with code ${code} and signal ${signal}`,
                 );
                 this.spectatorProcess = null;
-                reject();
+                reject(code);
             });
 
-            // Handle spectator client errors
+            // Handle spectator client output
             this.spectatorProcess.stderr?.on("data", async (data) => {
                 log.debug(data);
 
                 // Check for replay error
                 if ((data as string).includes("ERROR| ReplayDownloader")) {
-                    console.log("Failed to download replay");
                     // Kill the spectator client
-                    await this.exitSpectatorClient();
-                    reject();
+                    await this.exit();
+                    reject("Failed to download replay");
                 }
 
                 // Retreive summoner position in game
@@ -108,10 +152,9 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                     // Wait for the game to load and then configure the camera
                     setTimeout(async () => {
                         await this.configureCamera();
+                        this.gameEnded = false;
 
-                        log.info("onGameStarted");
-                        this.status = "ingame";
-                        this.emit("onGameStarted", this.currentGame!);
+                        this.emit("onGameStarted", this.summoner!, this.currentGame!);
                     }, 1000 * 5);
                 }
 
@@ -119,10 +162,11 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                 if ((data as string).includes("Received Game End Packet")) {
                     // Wait for the game to end and then kill the spectator client
                     setTimeout(async () => {
-                        log.info("onGameEnded");
-                        this.emit("onGameEnded", this.currentGame!);
+                        this.gameEnded = true;
 
-                        await this.exitSpectatorClient();
+                        this.emit("onGameEnded", this.summoner!, this.currentGame!);
+
+                        await this.exit();
                         resolve();
                     }, 1000 * 10);
                     resolve();
@@ -131,21 +175,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         });
     }
 
-    protected async exitSpectatorClient() {
-        log.info("Exiting spectator client");
 
-        this.status = "searching";
-        this.emit("onGameExited", this.currentGame!);
-
-        // Kill league of legends.exe
-        try {
-            execSync(`taskkill /F /IM "League of Legends.exe"`);
-        } catch (error) {
-            log.warn("Failed to kill League of Legends.exe");
-        }
-
-        this.spectatorProcess = null;
-    }
 
     private async configureCamera() {
         // Set camera zoom
