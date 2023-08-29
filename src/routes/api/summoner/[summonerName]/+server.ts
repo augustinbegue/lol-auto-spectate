@@ -9,11 +9,15 @@ export const GET: RequestHandler = async ({ params }) => {
         throw error(400, "Summoner name not provided");
     }
 
-    let summoner = await getSummoner(summonerName);
+    try {
+        let summoner = await getSummoner(summonerName);
 
-    if (!summoner) {
-        throw error(404, "Summoner not found");
+        if (!summoner) {
+            throw error(404, "Summoner not found");
+        }
+
+        return json(summoner);
+    } catch (e) {
+        throw error(500, "Failed to fetch summoner");
     }
-
-    return json(summoner);
 };
