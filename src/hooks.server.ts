@@ -7,7 +7,7 @@ import { Logger } from "tslog";
 
 import "dotenv/config";
 import type { AutoSpectateStatus } from "./app";
-import { getMatch } from "$lib/server/utils/db";
+import { getMatch, refreshSummonerLeagueEntries } from "$lib/server/utils/db";
 
 const log = new Logger({ name: "hooks", prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t", });
 
@@ -84,7 +84,10 @@ export const handle: Handle = async ({ event, resolve }) => {
             log.info(`onGameEnded: ${game.gameId}`);
             status = "searching";
 
-            const match = await getMatch(game.gameId);
+            lolSpectator.checkForNewGame();
+
+            await refreshSummonerLeagueEntries(summoner.name);
+            const match = await getMatch(game.gameId, summoner);
 
             if (obsController.connected) {
                 await obsController.setWaitingScene();

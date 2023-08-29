@@ -136,7 +136,7 @@ export async function getSummonerLeagueEntries(summonerName: string, count: numb
 
 export async function refreshSummonerLeagueEntries(summonerName: string) {
     let summoner = await getSummoner(summonerName);
-    let currentOldestLeagueEntry = (await getSummonerLeagueEntries(summonerName, 1))[0]
+    let oldLeagueEntry = (await getSummonerLeagueEntries(summonerName, 1))[0]
 
     if (summoner === null) {
         return;
@@ -146,11 +146,13 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
 
     let newLeagueEntry = leagueEntries[0];
 
-    if (currentOldestLeagueEntry === undefined && newLeagueEntry === undefined) {
+    console.log(oldLeagueEntry, newLeagueEntry);
+
+    if (oldLeagueEntry === undefined && newLeagueEntry === undefined) {
         return;
     }
 
-    if (currentOldestLeagueEntry === undefined || currentOldestLeagueEntry.wins !== newLeagueEntry.wins || currentOldestLeagueEntry.losses !== newLeagueEntry.losses || currentOldestLeagueEntry.leaguePoints !== newLeagueEntry.leaguePoints) {
+    if (oldLeagueEntry === undefined || oldLeagueEntry.wins !== newLeagueEntry.wins || oldLeagueEntry.losses !== newLeagueEntry.losses || oldLeagueEntry.leaguePoints !== newLeagueEntry.leaguePoints) {
         await prisma.leagueEntries.create({
             data: {
                 queueType: newLeagueEntry.queueType,

@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             },
         }),
         leagueEntry: (await getSummonerLeagueEntries(locals.lolSpectator.summoner.name, 1))[0],
-        leagueHistory: await getSummonerLeagueEntries(locals.lolSpectator.summoner.name, 10),
+        leagueHistory: (await getSummonerLeagueEntries(locals.lolSpectator.summoner.name, 10)).reverse(),
         twitchBot: {
             voteInProgress: locals.twitchBot?.voteInProgress,
             votes: locals.twitchBot?.votes,

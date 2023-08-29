@@ -409,7 +409,9 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
         const json = await res.json();
 
-        if (!json.data || json.data.length === 0) {
+        console.log(json);
+
+        if (json.data.length === 0) {
             return null;
         }
 
@@ -477,7 +479,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
     async endPrediction(status: "RESOLVED" | "CANCELED", match?: Match) {
         const lastPrediction = await this.getLastPrediction();
 
-        if (!lastPrediction || lastPrediction.status !== "ACTIVE" || lastPrediction.status !== "LOCKED") {
+        if (!lastPrediction || (lastPrediction.status !== "ACTIVE" && lastPrediction.status !== "LOCKED")) {
             log.error(
                 `No prediction in progress.`,
             );
