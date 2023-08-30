@@ -53,6 +53,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     // LolSpectator was not initialized, so we need to register the events
     if (!lolSpectatorInitialized) {
+        /*
+            * On Game Found
+        */
         lolSpectator.on("onGameFound", async (summoner, game) => {
             log.info(`onGameFound: ${game.gameId}`);
 
@@ -60,17 +63,34 @@ export const handle: Handle = async ({ event, resolve }) => {
                 // Set currentSummonerName to enable votes on switch
                 twitchController.currentSummonerName = lolSpectator.summoner?.name;
 
-                if (twitchController.authenticated)
+                if (twitchController.authenticated) {
+                    let displayName = summoner.pro ? `${summoner.pro.name} (${summoner.name})` : summoner.name;
+
                     await twitchController.startPrediction(summoner, game);
+
+                    await twitchController.updateStream({
+                        title: process.env.TWITCH_STREAM_TITLE?.replace(
+                            "{summonerName}",
+                            displayName,
+                        ),
+                    });
+
+                    await twitchController.chatAnnouncement(`Found a game for ${displayName}!`)
+                }
             }
         });
 
+        /*
+            * On Game Loading
+        */
         lolSpectator.client.on("onGameLoading", async (summoner, game, process) => {
             log.info(`onGameLoading: ${game.gameId}`);
             status = "loading";
         });
 
-
+        /*
+            * On Game Started
+        */
         lolSpectator.client.on("onGameStarted", async (summoner, game) => {
             log.info(`onGameStarted: ${game.gameId}`);
             status = "ingame";
@@ -80,6 +100,9 @@ export const handle: Handle = async ({ event, resolve }) => {
             }
         });
 
+        /*
+            * On Game Ended
+        */
         lolSpectator.client.on("onGameEnded", async (summoner, game) => {
             log.info(`onGameEnded: ${game.gameId}`);
             status = "searching";
@@ -104,6 +127,9 @@ export const handle: Handle = async ({ event, resolve }) => {
             }
         });
 
+        /*
+            * On Game Exited
+        */
         lolSpectator.client.on("onGameExited", async (summoner, game) => {
             log.info(`onGameExited: ${game.gameId}`);
 

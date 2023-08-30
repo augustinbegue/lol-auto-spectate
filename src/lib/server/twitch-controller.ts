@@ -228,7 +228,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         return this.userCache[username];
     }
 
-    private async chatAnnouncement(message: string) {
+    async chatAnnouncement(message: string) {
         if (!this.twitchUser) {
             this.twitchUser = await this.getUser(
                 process.env.TWITCH_CHANNEL ?? "",
@@ -296,7 +296,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         return false;
     }
 
-    private async updateStream(options: {
+    async updateStream(options: {
         game_id?: string;
         language?: string;
         title?: string;
