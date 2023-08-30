@@ -139,7 +139,21 @@ export async function getSummonerLeagueEntries(summonerName: string, count: numb
 }
 
 export async function refreshSummonerLeagueEntries(summonerName: string) {
-    let summoner = await getSummoner(summonerName);
+    let summoner = await prisma.summoner.findUnique({
+        where: {
+            name: summonerName,
+        },
+        include: {
+            pro: true
+        },
+    });
+
+    // Summoner doesn't exist in database -> no entries to refresh. Create it and return.
+    if (summoner === null) {
+        await getSummoner(summonerName);
+        return;
+    }
+
     let oldLeagueEntry = (await getSummonerLeagueEntries(summonerName, 1))[0]
 
     if (summoner === null) {
@@ -149,8 +163,6 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
     let leagueEntries = (await api.getLeagueEntriesBySummonerId("EUW1", summoner.id)).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
 
     let newLeagueEntry = leagueEntries[0];
-
-    console.log(oldLeagueEntry, newLeagueEntry);
 
     if (oldLeagueEntry === undefined && newLeagueEntry === undefined) {
         return;
