@@ -13,6 +13,10 @@ export type CachedSummoner = Summoner & {
 }
 
 export async function getSummoner(summonerName: string): Promise<CachedSummoner | null> {
+    if (!summonerName || summonerName.length === 0) {
+        return null;
+    }
+
     let summoner = await prisma.summoner.findUnique({
         where: {
             name: summonerName,
