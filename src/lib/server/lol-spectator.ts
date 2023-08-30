@@ -69,7 +69,9 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         let currentGame: CurrentGameInfo | undefined;
         try {
             currentGame = await this.api.getActiveGameBySummonerId("EUW1", this.summoner.id);
-        } catch (error) { }
+        } catch (error) {
+            log.error(`Failed to get active game for summoner ${this.summoner.name}: `, error);
+        }
 
         if (
             currentGame &&

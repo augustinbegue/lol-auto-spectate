@@ -123,6 +123,8 @@ export async function getSummoner(summonerName: string): Promise<CachedSummoner 
 }
 
 export async function getSummonerLeagueEntries(summonerName: string, count: number = 1) {
+    await refreshSummonerLeagueEntries(summonerName);
+
     return await prisma.leagueEntries.findMany({
         where: {
             summonerName: summonerName,
