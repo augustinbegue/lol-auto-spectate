@@ -3,7 +3,7 @@ import type { PageServerLoad } from "./$types";
 import champions from "../../../../static/assets/datadragon/data/en_GB/champion.json";
 import summoner from "../../../../static/assets/datadragon/data/en_GB/summoner.json";
 import runesReforged from "../../../../static/assets/datadragon/data/en_GB/runesReforged.json";
-import { getSummonerLeagueEntries } from "$lib/server/utils/db";
+import { getSummonerLeagueEntries, refreshSummonerLeagueEntries } from "$lib/server/utils/db";
 import type { LeagueEntries } from "@prisma/client";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         const participant = currentGame?.participants[i];
 
         if (participant) {
+            await refreshSummonerLeagueEntries(participant.summonerName);
             currentGameSummonerEntries[participant.summonerId] = (await getSummonerLeagueEntries(participant.summonerName, 1))[0];
         }
 
