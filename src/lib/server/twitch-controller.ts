@@ -164,7 +164,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
     async twitchRequest(
         method: string,
-        endpoint: string,
+        path: string,
         headers: any,
         body: any,
         refreshed = false,
@@ -173,7 +173,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             throw new Error("[twitch-bot] Not authenticated");
         }
 
-        const res = await fetch(`https://api.twitch.tv/${endpoint}`, {
+        const res = await fetch(`https://api.twitch.tv/${path}`, {
             method,
             headers: {
                 Authorization: `Bearer ${this.accessToken}`,
@@ -185,15 +185,15 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
         if (res.status === 401 && !refreshed) {
             await this.refresh();
-            return this.twitchRequest(method, endpoint, body, headers, true);
+            return this.twitchRequest(method, path, body, headers, true);
         } else if (res.status === 401) {
             throw new Error("[twitch-bot] Failed to refresh Twitch token");
         }
 
         if (!res.ok) {
             log.error(
-                `Failed to make Twitch request to: ${res.status} ${res.statusText
-                } ${await res.text()}`,
+                `Failed to make Twitch request to ${path} (${res.status} ${res.statusText
+                }): ${await res.text()}`,
             );
         }
 
@@ -211,9 +211,10 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             );
 
             if (!res.ok) {
-                throw new Error(
-                    `[twitch-bot] Failed to get user ${username}: ${res.status} ${res.statusText}`,
+                log.error(
+                    `Failed to get user ${username}.`,
                 );
+                return;
             }
 
             const json = await res.json();
@@ -403,8 +404,9 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
         if (!res.ok) {
             throw new Error(
-                `[twitch-bot] Failed to get last prediction: ${res.status} ${res.statusText}`,
+                `[twitch-bot] Failed to get last prediction.`,
             );
+            return;
         }
 
         const json = await res.json();
@@ -463,8 +465,9 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
         if (!res.ok) {
             log.error(
-                `Failed to start prediction: ${res.status} ${res.statusText}`,
+                `Failed to start prediction.`,
             );
+            return;
         }
 
         const json = await res.json();
@@ -516,8 +519,9 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
         if (!res.ok) {
             log.error(
-                `Failed to end prediction: ${res.status} ${res.statusText}`,
+                `Failed to end prediction.`,
             );
+            return;
         }
 
         const json = await res.json();
