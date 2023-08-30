@@ -53,6 +53,8 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
             clearTimeout(this.currentTimeout);
         }
 
+        this.lastSpectatedGameId = 0;
+
         this.client.exit();
     }
 
