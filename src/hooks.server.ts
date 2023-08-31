@@ -59,24 +59,28 @@ export const handle: Handle = async ({ event, resolve }) => {
         lolSpectator.on("onGameFound", async (summoner, game) => {
             log.info(`onGameFound: ${game.gameId}`);
 
-            if (twitchController) {
-                // Set currentSummonerName to enable votes on switch
-                twitchController.currentSummonerName = lolSpectator.summoner?.name;
+            try {
+                if (twitchController) {
+                    // Set currentSummonerName to enable votes on switch
+                    twitchController.currentSummonerName = lolSpectator.summoner?.name;
 
-                if (twitchController.authenticated) {
-                    let displayName = summoner.pro ? `${summoner.pro.name} (${summoner.name})` : summoner.name;
+                    if (twitchController.authenticated) {
+                        let displayName = summoner.pro ? `${summoner.pro.name} (${summoner.name})` : summoner.name;
 
-                    await twitchController.startPrediction(summoner, game);
+                        await twitchController.startPrediction(summoner, game);
 
-                    await twitchController.updateStream({
-                        title: process.env.TWITCH_STREAM_TITLE?.replace(
-                            "{summonerName}",
-                            displayName,
-                        ),
-                    });
+                        await twitchController.updateStream({
+                            title: process.env.TWITCH_STREAM_TITLE?.replace(
+                                "{summonerName}",
+                                displayName,
+                            ),
+                        });
 
-                    await twitchController.chatAnnouncement(`Found a game for ${displayName}!`)
+                        await twitchController.chatAnnouncement(`Found a game for ${displayName}!`)
+                    }
                 }
+            } catch (error) {
+                console.error(error);
             }
         });
 
@@ -109,21 +113,25 @@ export const handle: Handle = async ({ event, resolve }) => {
 
             lolSpectator.checkForNewGame();
 
-            await refreshSummonerLeagueEntries(summoner.name);
-            const match = await getMatch(game.gameId, summoner);
+            try {
+                await refreshSummonerLeagueEntries(summoner.name);
+                const match = await getMatch(game.gameId, summoner);
 
-            if (obsController.connected) {
-                await obsController.setWaitingScene();
-            }
-
-            if (twitchController && twitchController.authenticated) {
-                await twitchController.startCommercial(180);
-
-                if (match) {
-                    await twitchController.endPrediction("RESOLVED", match);
-                } else {
-                    await twitchController.endPrediction("CANCELED");
+                if (obsController.connected) {
+                    await obsController.setWaitingScene();
                 }
+
+                if (twitchController && twitchController.authenticated) {
+                    await twitchController.startCommercial(180);
+
+                    if (match) {
+                        await twitchController.endPrediction("RESOLVED", match);
+                    } else {
+                        await twitchController.endPrediction("CANCELED");
+                    }
+                }
+            } catch (error) {
+                log.error(error);
             }
         });
 
