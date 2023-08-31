@@ -16,7 +16,7 @@
         lpDelta: number;
         date: Date;
         leagueEntry: LeagueEntries;
-    }[];
+    }[] = [];
 
     $: {
         if (data.leagueHistory) {
