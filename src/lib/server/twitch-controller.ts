@@ -235,7 +235,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             );
         }
 
-        log.info(`Sending chat announcement: ${message} to`, this.twitchUser);
+        log.info(`Sending chat announcement: ${message}`,);
 
         const res = await this.twitchRequest(
             "POST",
@@ -410,8 +410,6 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         }
 
         const json = await res.json();
-
-        console.log(json);
 
         if (json.data.length === 0) {
             return null;

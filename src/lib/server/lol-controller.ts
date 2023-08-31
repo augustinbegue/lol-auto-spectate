@@ -124,7 +124,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
             // Handle spectator client output
             this.spectatorProcess.stderr?.on("data", async (data) => {
-                log.debug(data);
+                // log.debug(data);
 
                 // Check for replay error
                 if ((data as string).includes("ERROR| ReplayDownloader")) {
