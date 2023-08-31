@@ -1,7 +1,11 @@
 import type { Match, Pro, Summoner } from "@prisma/client";
 import { RiotApiWrapper } from "lol-api-wrapper";
 import { getLolProSummoner } from "./lolPro";
-import type { LeagueEntryDTO, MatchDTO, SummonerDTO } from "lol-api-wrapper/types";
+import type {
+    LeagueEntryDTO,
+    MatchDTO,
+    SummonerDTO,
+} from "lol-api-wrapper/types";
 import prisma from "./prisma";
 
 const QUEUE_TYPE = "RANKED_SOLO_5x5";
@@ -10,9 +14,11 @@ const api = new RiotApiWrapper(process.env.RIOT_API_KEY!);
 
 export type CachedSummoner = Summoner & {
     pro: Pro | null;
-}
+};
 
-export async function getSummoner(summonerName: string): Promise<CachedSummoner | null> {
+export async function getSummoner(
+    summonerName: string,
+): Promise<CachedSummoner | null> {
     if (!summonerName || summonerName.length === 0) {
         return null;
     }
@@ -22,7 +28,7 @@ export async function getSummoner(summonerName: string): Promise<CachedSummoner 
             name: summonerName,
         },
         include: {
-            pro: true
+            pro: true,
         },
     });
 
@@ -36,8 +42,9 @@ export async function getSummoner(summonerName: string): Promise<CachedSummoner 
             return null;
         }
 
-
-        let leagueEntries = (await api.getLeagueEntriesBySummonerId("EUW1", summonerData.id)).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
+        let leagueEntries = (
+            await api.getLeagueEntriesBySummonerId("EUW1", summonerData.id)
+        ).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
         let proEntry = await getLolProSummoner(summonerName);
 
         if (proEntry && proEntry.leagues) {
@@ -80,30 +87,37 @@ export async function getSummoner(summonerName: string): Promise<CachedSummoner 
                             veteran: leagueEntry.veteran,
                             inactive: leagueEntry.inactive,
                             freshBlood: leagueEntry.freshBlood,
-                        }
-                    })
+                        };
+                    }),
                 },
                 pro:
-                    proEntry === null ? undefined : {
-                        connectOrCreate: {
-                            where: {
-                                name: proEntry.name,
-                            },
-                            create: {
-                                name: proEntry.name,
-                                lproSlug: proEntry.slug,
-                                country: proEntry.country,
-                                social_twitter: proEntry.social_media.twitter,
-                                leagues: !proEntry.leagues ? undefined : {
-                                    connect: proEntry.leagues.map((league) => {
-                                        return {
-                                            id: league.uuid,
-                                        }
-                                    }),
-                                },
-                            }
-                        }
-                    }
+                    proEntry === null
+                        ? undefined
+                        : {
+                              connectOrCreate: {
+                                  where: {
+                                      name: proEntry.name,
+                                  },
+                                  create: {
+                                      name: proEntry.name,
+                                      lproSlug: proEntry.slug,
+                                      country: proEntry.country,
+                                      social_twitter:
+                                          proEntry.social_media.twitter,
+                                      leagues: !proEntry.leagues
+                                          ? undefined
+                                          : {
+                                                connect: proEntry.leagues.map(
+                                                    (league) => {
+                                                        return {
+                                                            id: league.uuid,
+                                                        };
+                                                    },
+                                                ),
+                                            },
+                                  },
+                              },
+                          },
             },
         });
 
@@ -113,12 +127,6 @@ export async function getSummoner(summonerName: string): Promise<CachedSummoner 
             },
             include: {
                 pro: true,
-                LeagueEntries: {
-                    take: 1,
-                    orderBy: {
-                        date: "desc",
-                    },
-                }
             },
         });
     }
@@ -126,7 +134,10 @@ export async function getSummoner(summonerName: string): Promise<CachedSummoner 
     return summoner;
 }
 
-export async function getSummonerLeagueEntries(summonerName: string, count: number = 1) {
+export async function getSummonerLeagueEntries(
+    summonerName: string,
+    count: number = 1,
+) {
     return await prisma.leagueEntries.findMany({
         where: {
             summonerName: summonerName,
@@ -144,7 +155,7 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
             name: summonerName,
         },
         include: {
-            pro: true
+            pro: true,
         },
     });
 
@@ -154,7 +165,7 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
         return;
     }
 
-    let oldLeagueEntry = (await getSummonerLeagueEntries(summonerName, 1))[0]
+    let oldLeagueEntry = (await getSummonerLeagueEntries(summonerName, 1))[0];
 
     if (summoner === null) {
         return;
@@ -163,7 +174,9 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
     let leagueEntries: LeagueEntryDTO[] = [];
 
     try {
-        leagueEntries = (await api.getLeagueEntriesBySummonerId("EUW1", summoner.id)).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
+        leagueEntries = (
+            await api.getLeagueEntriesBySummonerId("EUW1", summoner.id)
+        ).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
     } catch (error) {
         console.error(error);
     }
@@ -178,7 +191,12 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
         return;
     }
 
-    if (oldLeagueEntry === undefined || oldLeagueEntry.wins !== newLeagueEntry.wins || oldLeagueEntry.losses !== newLeagueEntry.losses || oldLeagueEntry.leaguePoints !== newLeagueEntry.leaguePoints) {
+    if (
+        oldLeagueEntry === undefined ||
+        oldLeagueEntry.wins !== newLeagueEntry.wins ||
+        oldLeagueEntry.losses !== newLeagueEntry.losses ||
+        oldLeagueEntry.leaguePoints !== newLeagueEntry.leaguePoints
+    ) {
         await prisma.leagueEntries.create({
             data: {
                 queueType: newLeagueEntry.queueType,
@@ -195,14 +213,17 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
                 summoner: {
                     connect: {
                         name: summonerName,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
     }
 }
 
-export async function getMatch(gameId: number, summoner?: CachedSummoner): Promise<Match | null> {
+export async function getMatch(
+    gameId: number,
+    summoner?: CachedSummoner,
+): Promise<Match | null> {
     const matchId = `EUW1_${gameId}`;
 
     const match = await prisma.match.findUnique({
@@ -225,10 +246,10 @@ export async function getMatch(gameId: number, summoner?: CachedSummoner): Promi
                 summoner: {
                     connect: {
                         name: summoner?.name,
-                    }
+                    },
                 },
                 data: JSON.stringify(res),
-            }
+            },
         });
 
         return match;

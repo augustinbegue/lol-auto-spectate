@@ -219,7 +219,7 @@
                                 )}
                                 alt=""
                             />
-                            {#if data.currentGameSummoners[participant.summonerName]?.pro !== null}
+                            {#if data.currentGameSummoners[participant.summonerName]?.pro}
                                 {@const pro =
                                     data.currentGameSummoners[
                                         participant.summonerName
