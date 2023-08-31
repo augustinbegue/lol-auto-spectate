@@ -561,6 +561,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         });
         this.client.on("disconnected", () => {
             log.warn("Disconnected from Twitch");
+            this.client?.removeAllListeners();
             this.connectToChat(true);
         });
 
