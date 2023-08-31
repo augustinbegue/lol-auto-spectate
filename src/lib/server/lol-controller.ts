@@ -16,7 +16,7 @@ type LolControllerEvents = {
     onGameLoading: (summoner: CachedSummoner, game: CurrentGameInfo, process: ChildProcess) => void;
     onGameStarted: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
     onGameEnded: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
-    onGameExited: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
+    onGameExited: (summoner?: CachedSummoner, game?: CurrentGameInfo) => void;
 };
 
 export class LolController extends (EventEmitter as new () => TypedEmitter<LolControllerEvents>) {
@@ -72,7 +72,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
 
     private kill() {
-        this.emit("onGameExited", this.summoner!, this.currentGame!);
+        this.emit("onGameExited", this.summoner, this.currentGame);
 
         // Kill league of legends.exe
         try {

@@ -131,7 +131,7 @@ export const handle: Handle = async ({ event, resolve }) => {
             * On Game Exited
         */
         lolSpectator.client.on("onGameExited", async (summoner, game) => {
-            log.info(`onGameExited: ${game.gameId}`);
+            log.info(`onGameExited: ${game?.gameId}`);
 
             if (obsController.connected && !(await obsController.isWaitingScene())) {
                 await obsController.setWaitingScene();
