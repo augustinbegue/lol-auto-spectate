@@ -19,12 +19,12 @@ export const GET: RequestHandler = async ({ locals, fetch }) => {
 
         const data: LiveClientData = await res.json();
 
-        let fsight = true;
+        let connected = true;
         if (!farsight.isReady()) {
-            fsight = await farsight.connectToLeague();
+            connected = await farsight.connectToLeague();
         }
 
-        if (!fsight) {
+        if (!connected) {
             return json(data);
         }
 
@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ locals, fetch }) => {
 
         return json({
             ...data,
-            farsight: fsight,
+            farsight: farsight.isReady() && connected,
             inhibitors: snapshot.inhibitors,
             jungle: snapshot.jungle,
             turrets: snapshot.turrets,

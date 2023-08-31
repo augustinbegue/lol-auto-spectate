@@ -179,90 +179,100 @@
     "
     >
         <div class="translate-x-[6px]">
-            <div class="w-full flex flex-row justify-center">
-                <div class="score-bar order">
-                    <span class="score">
-                        {orderScore}
-                    </span>
+            {#if data.farsight}
+                <div class="w-full flex flex-row justify-center">
+                    <div class="score-bar order">
+                        <span class="score">
+                            {orderScore}
+                        </span>
 
-                    <span class="score">
-                        {Math.round((orderGold / 1000) * 10) / 10}k
-                        <img class="h-8" src="/assets/gold.svg" alt="gold" />
-                    </span>
-
-                    <span class="score">
-                        {orderTurrets}
-                        <img
-                            class="h-8"
-                            src="/assets/turret.svg"
-                            alt="turret"
-                        />
-                    </span>
-                </div>
-                <div class="score-bar p-4">
-                    <img src="/assets/swords.svg" alt="swords" />
-                </div>
-                <div class="score-bar chaos">
-                    <span class="score">
-                        {chaosScore}
-                    </span>
-
-                    <span class="score">
-                        {Math.round((chaosGold / 1000) * 10) / 10}k
-                        <img class="h-8" src="/assets/gold.svg" alt="gold" />
-                    </span>
-
-                    <span class="score">
-                        {chaosTurrets}
-                        <img
-                            class="h-8"
-                            src="/assets/turret.svg"
-                            alt="turret"
-                        />
-                    </span>
-                </div>
-            </div>
-            <div class="flex flex-row justify-center al">
-                <div class="score-below">
-                    {#if Math.floor((orderGold - chaosGold) / 1000) > 0}
-                        <p
-                            transition:slide
-                            class="absolute text-blue-400 text-lg font-bold px-4 inline-flex justify-center items-center gap-1 bg-gray"
-                            style="position: absolute; left: 33%;"
-                        >
-                            +{Math.round(
-                                ((orderGold - chaosGold) / 1000) * 10,
-                            ) / 10}k
+                        <span class="score">
+                            {Math.round((orderGold / 1000) * 10) / 10}k
                             <img
-                                class="h-4"
+                                class="h-8"
                                 src="/assets/gold.svg"
                                 alt="gold"
                             />
-                        </p>
-                    {/if}
-                    <p class="text-2xl font-extrabold bg-gray px-14">
-                        {Math.floor(data.gameData.gameTime / 60)}:{String(
-                            Math.floor(data.gameData.gameTime % 60),
-                        ).padStart(2, "0")}
-                    </p>
-                    {#if Math.floor((chaosGold - orderGold) / 1000) > 0}
-                        <p
-                            transition:slide
-                            class="absolute text-red-400 text-lg font-bold px-4 inline-flex justify-center items-center gap-1 bg-gray"
-                            style="position: absolute; right: 33%;"
-                        >
-                            +{Math.round(
-                                ((chaosGold - orderGold) / 1000) * 10,
-                            ) / 10}k
+                        </span>
+
+                        <span class="score">
+                            {orderTurrets}
                             <img
-                                class="h-4"
+                                class="h-8"
+                                src="/assets/turret.svg"
+                                alt="turret"
+                            />
+                        </span>
+                    </div>
+                    <div class="score-bar p-4">
+                        <img src="/assets/swords.svg" alt="swords" />
+                    </div>
+                    <div class="score-bar chaos">
+                        <span class="score">
+                            {chaosScore}
+                        </span>
+
+                        <span class="score">
+                            {Math.round((chaosGold / 1000) * 10) / 10}k
+                            <img
+                                class="h-8"
                                 src="/assets/gold.svg"
                                 alt="gold"
                             />
-                        </p>
-                    {/if}
+                        </span>
+
+                        <span class="score">
+                            {chaosTurrets}
+                            <img
+                                class="h-8"
+                                src="/assets/turret.svg"
+                                alt="turret"
+                            />
+                        </span>
+                    </div>
                 </div>
-            </div>
+                <div class="flex flex-row justify-center al">
+                    <div class="score-below">
+                        {#if Math.floor((orderGold - chaosGold) / 1000) > 0}
+                            <p
+                                transition:slide
+                                class="absolute text-blue-400 text-lg font-bold px-4 inline-flex justify-center items-center gap-1 bg-gray"
+                                style="position: absolute; left: 33%;"
+                            >
+                                +{Math.round(
+                                    ((orderGold - chaosGold) / 1000) * 10,
+                                ) / 10}k
+                                <img
+                                    class="h-4"
+                                    src="/assets/gold.svg"
+                                    alt="gold"
+                                />
+                            </p>
+                        {/if}
+                        <p class="text-2xl font-extrabold bg-gray px-14">
+                            {Math.floor(data.gameData.gameTime / 60)}:{String(
+                                Math.floor(data.gameData.gameTime % 60),
+                            ).padStart(2, "0")}
+                        </p>
+                        {#if Math.floor((chaosGold - orderGold) / 1000) > 0}
+                            <p
+                                transition:slide
+                                class="absolute text-red-400 text-lg font-bold px-4 inline-flex justify-center items-center gap-1 bg-gray"
+                                style="position: absolute; right: 33%;"
+                            >
+                                +{Math.round(
+                                    ((chaosGold - orderGold) / 1000) * 10,
+                                ) / 10}k
+                                <img
+                                    class="h-4"
+                                    src="/assets/gold.svg"
+                                    alt="gold"
+                                />
+                            </p>
+                        {/if}
+                    </div>
+                </div>
+            {/if}
         </div>
         <div class="team-frames-container">
             <div class="team-frames">
@@ -489,7 +499,7 @@
                     </table>
                 </div>
             </div>
-        {:else}
+        {:else if data.farsight}
             <div transition:slide class="scoreboard-container">
                 <div class="side">
                     <div class="diff">
