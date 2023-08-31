@@ -4,19 +4,12 @@
     import RankDisplay from "$lib/display/summonerEntry/RankDisplay.svelte";
     import { invalidateAll } from "$app/navigation";
     import { slide } from "svelte/transition";
-    import type { CachedSummoner } from "$lib/server/utils/db";
     import type { LeagueEntries } from "@prisma/client";
 
     export let data: PageData;
 
     let status: string;
     let interval: NodeJS.Timeout;
-
-    const accounts: { [key: string]: CachedSummoner } = {};
-
-    $: summonerNames = data.currentGame?.participants.map(
-        (p) => p.summonerName,
-    );
 
     let historyData: {
         result: "win" | "loss";
@@ -84,7 +77,6 @@
 
     onMount(async () => {
         await fetchStatus();
-        await fetchAccounts();
 
         console.log(data.leagueHistory);
 
@@ -98,36 +90,19 @@
         clearInterval(interval);
     });
 
-    async function fetchAccounts() {
-        if (summonerNames) {
-            for (const summonerName of summonerNames) {
-                const res = await fetch(`/api/summoner/${summonerName}`, {
-                    method: "GET",
-                });
-
-                if (res.ok) {
-                    const lpro = (await res.json()) as CachedSummoner;
-
-                    accounts[summonerName] = lpro;
-                }
-            }
-        }
-    }
-
     async function fetchStatus() {
         const res = await fetch("/api/spectator/status");
         const json = await res.json();
 
         if (status !== json.status) {
             await invalidateAll();
-            await fetchAccounts();
         }
 
         status = json.status;
     }
 
     function getChampionImageById(id: number) {
-        if (data.championsById[id]) {
+        if (data.championsById?.[id]) {
             return `/assets/datadragon/img/champion/tiles/${data.championsById[id].id}_0.jpg`;
         }
     }
@@ -137,13 +112,13 @@
     }
 
     function getSummonerSpellImageById(id: number) {
-        if (data.summonerSpellsById[id]) {
+        if (data.summonerSpellsById?.[id]) {
             return `/assets/datadragon/img/spell/${data.summonerSpellsById[id].id}.png`;
         }
     }
 
     function getPerkImageById(id: number) {
-        if (data.runesReforgedById[id]) {
+        if (data.runesReforgedById?.[id]) {
             return `/assets/datadragon/img/${data.runesReforgedById[id].icon}`;
         }
     }
@@ -212,7 +187,9 @@
             >
                 {#each game.participants.filter((p) => p.teamId === teamId) as participant, i}
                     {@const summonerEntry =
-                        data.currentGameSummonerEntries[participant.summonerId]}
+                        data.currentGameSummonersLeagueEntries[
+                            participant.summonerId
+                        ]}
                     <div
                         transition:slide={{
                             delay: teamId * (i + 1),
@@ -242,21 +219,20 @@
                                 )}
                                 alt=""
                             />
-                            {#if accounts[participant.summonerName].pro !== null}
+                            {#if data.currentGameSummoners[participant.summonerName]?.pro !== null}
+                                {@const pro =
+                                    data.currentGameSummoners[
+                                        participant.summonerName
+                                    ]?.pro}
                                 <div class="flex flex-col">
                                     <span
                                         class="flex flex-row justify-center items-center gap-1"
                                     >
-                                        {accounts[participant.summonerName].pro
-                                            ?.name}
+                                        {pro?.name}
                                         <img
                                             class="h-5 mx-1"
-                                            src="https://flagsapi.com/{accounts[
-                                                participant.summonerName
-                                            ].pro?.country}/flat/64.png"
-                                            alt="{accounts[
-                                                participant.summonerName
-                                            ].pro?.country} flag"
+                                            src="https://flagsapi.com/{pro?.country}/flat/64.png"
+                                            alt="{pro?.country} flag"
                                         />
                                     </span>
                                     <span class="font-normal">
