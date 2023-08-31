@@ -13,7 +13,11 @@ const log = new Logger({
 });
 
 type LolControllerEvents = {
-    onGameLoading: (summoner: CachedSummoner, game: CurrentGameInfo, process: ChildProcess) => void;
+    onGameLoading: (
+        summoner: CachedSummoner,
+        game: CurrentGameInfo,
+        process: ChildProcess,
+    ) => void;
     onGameStarted: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
     onGameEnded: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
     onGameExited: (summoner?: CachedSummoner, game?: CurrentGameInfo) => void;
@@ -35,7 +39,6 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         this.leagueFolderPath = leagueFolderPath;
     }
 
-
     async launch(summoner: CachedSummoner, game: CurrentGameInfo, retry = 0) {
         this.gameEnded = false;
         this.summoner = summoner;
@@ -44,15 +47,23 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         try {
             await this.exec();
         } catch (error) {
-            log.warn(`Client exited with error: `, error)
+            log.warn(`Client exited with error: `, error);
             this.kill();
 
             if (!this.gameEnded) {
                 // Game crashed
-                log.warn("Client crashed. Relaunching spectator client");
+                log.warn(
+                    "Client crashed. Relaunching spectator client in 10 seconds.",
+                );
+
+                await new Promise((resolve) => setTimeout(resolve, 1000 * 10));
 
                 if (retry < 5) {
-                    await this.launch(this.summoner, this.currentGame, retry + 1);
+                    await this.launch(
+                        this.summoner,
+                        this.currentGame,
+                        retry + 1,
+                    );
                 } else {
                     log.error("Failed to relaunch spectator client");
                 }
@@ -69,7 +80,6 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
         this.kill();
     }
-
 
     private kill() {
         this.emit("onGameExited", this.summoner, this.currentGame);
@@ -156,7 +166,11 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                         await this.configureCamera();
                         this.gameEnded = false;
 
-                        this.emit("onGameStarted", this.summoner!, this.currentGame!);
+                        this.emit(
+                            "onGameStarted",
+                            this.summoner!,
+                            this.currentGame!,
+                        );
                     }, 1000 * 5);
                 }
 
@@ -166,7 +180,11 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                     setTimeout(async () => {
                         this.gameEnded = true;
 
-                        this.emit("onGameEnded", this.summoner!, this.currentGame!);
+                        this.emit(
+                            "onGameEnded",
+                            this.summoner!,
+                            this.currentGame!,
+                        );
 
                         await this.exit();
                         resolve();
@@ -176,8 +194,6 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
             });
         });
     }
-
-
 
     private async configureCamera() {
         // Set camera zoom
