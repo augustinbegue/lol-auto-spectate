@@ -67,9 +67,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
         this.gameEnded = true;
 
-        if (this.spectatorProcess) {
-            this.kill();
-        }
+        this.kill();
     }
 
 

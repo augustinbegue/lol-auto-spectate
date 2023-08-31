@@ -1,7 +1,7 @@
 import type { Match, Pro, Summoner } from "@prisma/client";
 import { RiotApiWrapper } from "lol-api-wrapper";
 import { getLolProSummoner } from "./lolPro";
-import type { MatchDTO, SummonerDTO } from "lol-api-wrapper/types";
+import type { LeagueEntryDTO, MatchDTO, SummonerDTO } from "lol-api-wrapper/types";
 import prisma from "./prisma";
 
 const QUEUE_TYPE = "RANKED_SOLO_5x5";
@@ -160,7 +160,17 @@ export async function refreshSummonerLeagueEntries(summonerName: string) {
         return;
     }
 
-    let leagueEntries = (await api.getLeagueEntriesBySummonerId("EUW1", summoner.id)).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
+    let leagueEntries: LeagueEntryDTO[] = [];
+
+    try {
+        leagueEntries = (await api.getLeagueEntriesBySummonerId("EUW1", summoner.id)).filter((leagueEntry) => leagueEntry.queueType === QUEUE_TYPE);
+    } catch (error) {
+        console.error(error);
+    }
+
+    if (!leagueEntries || leagueEntries.length === 0) {
+        return;
+    }
 
     let newLeagueEntry = leagueEntries[0];
 
