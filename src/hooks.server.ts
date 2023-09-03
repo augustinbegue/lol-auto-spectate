@@ -167,6 +167,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Twitch bot was not initialized, so we need to register the events
     if (!twitchBotInitialized) {
         twitchController.on("onSwitch", async (summoner) => {
+            log.info(`onSwitch: ${summoner.name}`);
+
             await lolSpectator.setSummoner(summoner);
         });
     }

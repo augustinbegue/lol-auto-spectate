@@ -47,8 +47,9 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         try {
             await this.exec();
         } catch (error) {
+            this.emit("onGameExited", this.summoner, this.currentGame);
+
             log.warn(`Client exited with error: `, error);
-            this.kill();
 
             if (!this.gameEnded) {
                 // Game crashed
@@ -74,8 +75,6 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
     }
 
     private kill() {
-        this.emit("onGameExited", this.summoner, this.currentGame);
-
         // Kill league of legends.exe
         try {
             execSync(`taskkill /F /IM "League of Legends.exe"`);
