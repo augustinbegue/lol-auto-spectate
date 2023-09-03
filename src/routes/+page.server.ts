@@ -29,8 +29,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         lolSpectator: {
             status: locals.status,
             summoner: locals.lolSpectator.summoner,
-            obsControl: !!locals.lolSpectator.obsController,
-            twitchBot: !!locals.lolSpectator.twitchBot,
+            obsControl: !!locals.obsController,
+            twitchBot: !!locals.twitchBot,
         },
         twitchBot: {
             authenticated: !!locals.twitchBot?.authenticated,
