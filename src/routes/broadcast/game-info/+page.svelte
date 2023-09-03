@@ -8,7 +8,7 @@
 
     export let data: PageData;
 
-    let status: string;
+    let status: string = "offline";
     let interval: NodeJS.Timeout;
 
     let historyData: {
@@ -76,13 +76,8 @@
     }
 
     onMount(async () => {
-        await fetchStatus();
-
-        console.log(data.leagueHistory);
-
         interval = setInterval(async () => {
             await fetchStatus();
-            console.log(status);
         }, 1000);
     });
 
@@ -196,8 +191,8 @@
                             duration: 1000,
                         }}
                         class="
-                    flex flex-col h-full justify-start items-center w-full bg-gray text-white
-                     border-t-4"
+                        flex flex-col h-full justify-start items-center w-full bg-gray text-white
+                        border-t-4"
                         class:active={summonerEntry?.summonerName ===
                             data.currentSummoner?.name}
                         class:border-t-gray={summonerEntry?.summonerName ===
@@ -219,10 +214,10 @@
                                 )}
                                 alt=""
                             />
-                            {#if data.currentGameSummoners[participant.summonerName]?.pro}
+                            {#if data.currentGameSummoners[participant.summonerId]?.pro}
                                 {@const pro =
                                     data.currentGameSummoners[
-                                        participant.summonerName
+                                        participant.summonerId
                                     ]?.pro}
                                 <div class="flex flex-col">
                                     <span

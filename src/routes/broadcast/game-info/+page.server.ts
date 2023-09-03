@@ -104,7 +104,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             summonerSpellsById,
             runesReforgedById,
         };
-    } else {
+    } else if (locals.status !== "offline") {
         let leagueHistory = (
             await getSummonerLeagueEntries(currentSummoner?.name!, 10)
         ).reverse();
@@ -112,5 +112,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         return {
             leagueHistory,
         };
+    } else {
+        return {};
     }
 };
