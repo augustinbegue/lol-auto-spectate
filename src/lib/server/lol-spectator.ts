@@ -94,10 +94,10 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
             this.lastSpectatedGameId = currentGame.gameId;
 
             await this.client.launch(this.summoner, currentGame);
+        } else {
+            this.currentTimeout = setTimeout(() => {
+                this.checkForNewGame();
+            }, this.timeoutInterval);
         }
-
-        this.currentTimeout = setTimeout(() => {
-            this.checkForNewGame();
-        }, this.timeoutInterval);
     }
 }

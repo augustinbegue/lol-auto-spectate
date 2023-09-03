@@ -58,15 +58,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
                 await new Promise((resolve) => setTimeout(resolve, 1000 * 10));
 
-                if (retry < 5) {
-                    await this.launch(
-                        this.summoner,
-                        this.currentGame,
-                        retry + 1,
-                    );
-                } else {
-                    log.error("Failed to relaunch spectator client");
-                }
+                await this.launch(this.summoner, this.currentGame, retry + 1);
             } else {
                 log.info("Game ended. Not relaunching spectator client");
             }

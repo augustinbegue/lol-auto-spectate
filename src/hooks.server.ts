@@ -142,6 +142,8 @@ export const handle: Handle = async ({ event, resolve }) => {
             } catch (error) {
                 log.error(error);
             }
+
+            lolSpectator.checkForNewGame();
         });
 
         /*
