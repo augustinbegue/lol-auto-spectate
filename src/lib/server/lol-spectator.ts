@@ -59,11 +59,13 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         this.client.exit();
         this.lastSpectatedGameId = 0;
 
+        this.retrySearch = false;
         if (this.currentTimeout) {
             clearTimeout(this.currentTimeout);
         }
     }
 
+    private retrySearch = false;
     async checkForNewGame() {
         if (!this.api) {
             throw new Error("[lol-spectator] Spectator not initialized");
@@ -72,6 +74,8 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         if (!this.summoner) {
             throw new Error(`[lol-spectator] Summoner not found`);
         }
+
+        this.retrySearch = true;
 
         // Check if the summoner has a game in progress
         let currentGame: CurrentGameInfo | undefined;
@@ -95,9 +99,12 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
 
             await this.client.launch(this.summoner, currentGame);
         } else {
-            this.currentTimeout = setTimeout(() => {
-                this.checkForNewGame();
-            }, this.timeoutInterval);
+            if (this.retrySearch) {
+                this.currentTimeout = setTimeout(
+                    this.checkForNewGame.bind(this),
+                    this.timeoutInterval,
+                );
+            }
         }
     }
 }

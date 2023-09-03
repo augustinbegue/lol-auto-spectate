@@ -66,7 +66,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         }
     }
 
-    async exit() {
+    exit() {
         log.info("Exiting spectator client");
 
         this.gameEnded = true;
