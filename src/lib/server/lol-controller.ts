@@ -187,9 +187,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                         );
 
                         await this.exit();
-                        resolve();
                     }, 1000 * 10);
-                    resolve();
                 }
             });
         });

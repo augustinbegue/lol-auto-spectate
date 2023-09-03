@@ -9,8 +9,10 @@ import "dotenv/config";
 import type { AutoSpectateStatus } from "./app";
 import { getMatch, refreshSummonerLeagueEntries } from "$lib/server/utils/db";
 
-const log = new Logger({ name: "hooks", prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t", });
-
+const log = new Logger({
+    name: "hooks",
+    prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t",
+});
 
 let lolSpectator: LolSpectator;
 let twitchController: TwitchController;
@@ -54,18 +56,21 @@ export const handle: Handle = async ({ event, resolve }) => {
     // LolSpectator was not initialized, so we need to register the events
     if (!lolSpectatorInitialized) {
         /*
-            * On Game Found
-        */
+         * On Game Found
+         */
         lolSpectator.on("onGameFound", async (summoner, game) => {
             log.info(`onGameFound: ${game.gameId}`);
 
             try {
                 if (twitchController) {
                     // Set currentSummonerName to enable votes on switch
-                    twitchController.currentSummonerName = lolSpectator.summoner?.name;
+                    twitchController.currentSummonerName =
+                        lolSpectator.summoner?.name;
 
                     if (twitchController.authenticated) {
-                        let displayName = summoner.pro ? `${summoner.pro.name} (${summoner.name})` : summoner.name;
+                        let displayName = summoner.pro
+                            ? `${summoner.pro.name} (${summoner.name})`
+                            : summoner.name;
 
                         await twitchController.startPrediction(summoner, game);
 
@@ -76,7 +81,9 @@ export const handle: Handle = async ({ event, resolve }) => {
                             ),
                         });
 
-                        await twitchController.chatAnnouncement(`Found a game for ${displayName}!`)
+                        await twitchController.chatAnnouncement(
+                            `Found a game for ${displayName}!`,
+                        );
                     }
                 }
             } catch (error) {
@@ -85,16 +92,19 @@ export const handle: Handle = async ({ event, resolve }) => {
         });
 
         /*
-            * On Game Loading
-        */
-        lolSpectator.client.on("onGameLoading", async (summoner, game, process) => {
-            log.info(`onGameLoading: ${game.gameId}`);
-            status = "loading";
-        });
+         * On Game Loading
+         */
+        lolSpectator.client.on(
+            "onGameLoading",
+            async (summoner, game, process) => {
+                log.info(`onGameLoading: ${game.gameId}`);
+                status = "loading";
+            },
+        );
 
         /*
-            * On Game Started
-        */
+         * On Game Started
+         */
         lolSpectator.client.on("onGameStarted", async (summoner, game) => {
             log.info(`onGameStarted: ${game.gameId}`);
             status = "ingame";
@@ -105,13 +115,12 @@ export const handle: Handle = async ({ event, resolve }) => {
         });
 
         /*
-            * On Game Ended
-        */
+         * On Game Ended
+         */
         lolSpectator.client.on("onGameEnded", async (summoner, game) => {
             log.info(`onGameEnded: ${game.gameId}`);
-            status = "searching";
 
-            lolSpectator.checkForNewGame();
+            status = "searching";
 
             try {
                 await refreshSummonerLeagueEntries(summoner.name);
@@ -136,12 +145,15 @@ export const handle: Handle = async ({ event, resolve }) => {
         });
 
         /*
-            * On Game Exited
-        */
+         * On Game Exited
+         */
         lolSpectator.client.on("onGameExited", async (summoner, game) => {
             log.info(`onGameExited: ${game?.gameId}`);
 
-            if (obsController.connected && !(await obsController.isWaitingScene())) {
+            if (
+                obsController.connected &&
+                !(await obsController.isWaitingScene())
+            ) {
                 await obsController.setWaitingScene();
             }
         });

@@ -1,18 +1,25 @@
 import type TypedEmitter from "typed-emitter";
 import { EventEmitter } from "node:events";
 import { RiotApiWrapper } from "lol-api-wrapper";
-import type { CurrentGameInfo, LeagueEntryDTO, SummonerDTO } from "lol-api-wrapper/types";
+import type {
+    CurrentGameInfo,
+    LeagueEntryDTO,
+    SummonerDTO,
+} from "lol-api-wrapper/types";
 import { Logger } from "tslog";
 import { LolController } from "./lol-controller";
 import { findLeaguePath } from "./utils/findLeaguePath";
-import { getSummoner, refreshSummonerLeagueEntries, type CachedSummoner } from "./utils/db";
+import {
+    getSummoner,
+    refreshSummonerLeagueEntries,
+    type CachedSummoner,
+} from "./utils/db";
 import type { Summoner } from "@prisma/client";
 
 const log = new Logger({
     name: "lol-spectator",
     prettyLogTemplate: "{{hh}}:{{MM}}:{{ss}}\t{{logLevelName}}\t[{{name}}]\t",
 });
-
 
 type LolSpectatorEvents = {
     onGameFound: (summoner: CachedSummoner, game: CurrentGameInfo) => void;
@@ -49,13 +56,12 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
     async stop() {
         log.info("Stopping search for a new game");
 
+        this.client.exit();
+        this.lastSpectatedGameId = 0;
+
         if (this.currentTimeout) {
             clearTimeout(this.currentTimeout);
         }
-
-        this.lastSpectatedGameId = 0;
-
-        this.client.exit();
     }
 
     async checkForNewGame() {
@@ -70,8 +76,11 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         // Check if the summoner has a game in progress
         let currentGame: CurrentGameInfo | undefined;
         try {
-            currentGame = await this.api.getActiveGameBySummonerId("EUW1", this.summoner.id);
-        } catch (error) { }
+            currentGame = await this.api.getActiveGameBySummonerId(
+                "EUW1",
+                this.summoner.id,
+            );
+        } catch (error) {}
 
         if (
             currentGame &&
@@ -85,12 +94,10 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
             this.lastSpectatedGameId = currentGame.gameId;
 
             await this.client.launch(this.summoner, currentGame);
-        } else {
-            log.info(`No game found`);
-
-            this.currentTimeout = setTimeout(() => {
-                this.checkForNewGame();
-            }, this.timeoutInterval);
         }
+
+        this.currentTimeout = setTimeout(() => {
+            this.checkForNewGame();
+        }, this.timeoutInterval);
     }
 }
