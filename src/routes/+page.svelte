@@ -38,7 +38,7 @@
                 class="bg-purple text-white p-2 hover:bg-pink"
                 on:click={start}>Start</button
             >
-        {:else if data.lolSpectator.status === "ingame" || data.lolSpectator.status === "searching"}
+        {:else if data.lolSpectator.status === "ingame" || data.lolSpectator.status === "searching" || data.lolSpectator.status === "loading"}
             <button
                 class="bg-pink text-white p-2 hover:bg-purple"
                 on:click={stop}>Stop</button
