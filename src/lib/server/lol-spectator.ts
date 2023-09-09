@@ -26,6 +26,7 @@ type LolSpectatorEvents = {
 };
 
 export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpectatorEvents>) {
+    spectatorId: string;
     client: LolController;
     api: RiotApiWrapper;
     summoner: CachedSummoner | null;
@@ -41,6 +42,7 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         this.client = new LolController(findLeaguePath());
         this.api = new RiotApiWrapper(process.env.RIOT_API_KEY!);
         this.summoner = null;
+        this.spectatorId = crypto.randomUUID();
     }
 
     async setSummoner(summoner: CachedSummoner) {
@@ -99,6 +101,8 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
 
             await this.client.launch(this.summoner, currentGame);
         } else {
+            log.info("No game found");
+
             if (this.retrySearch) {
                 this.currentTimeout = setTimeout(
                     this.checkForNewGame.bind(this),

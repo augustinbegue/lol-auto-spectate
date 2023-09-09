@@ -66,34 +66,11 @@
             .length ?? 0;
 
     let interval: NodeJS.Timeout;
-    const accounts: { [key: string]: CachedSummoner } = {};
     onMount(async () => {
-        console.log(data);
-
         // Auto-refresh data every second
         interval = setInterval(() => {
             invalidateAll();
         }, 250);
-
-        if (data.allPlayers) {
-            const summonerNames = data.allPlayers.map((player) => {
-                return player.summonerName;
-            });
-
-            for (const summonerName of summonerNames) {
-                const res = await fetch(`/api/summoner/${summonerName}`, {
-                    method: "GET",
-                });
-
-                if (res.ok) {
-                    const lpro = (await res.json()) as CachedSummoner;
-
-                    accounts[summonerName] = lpro;
-                }
-            }
-
-            console.log(accounts);
-        }
     });
 
     onDestroy(() => {
@@ -285,19 +262,19 @@
                             class:text-white={player.summonerName !==
                                 data.targetSummonerName}
                         >
-                            {#if accounts[player.summonerName]?.pro}
+                            {#if data.accounts[player.summonerName]?.pro}
                                 <span>
                                     ({player.summonerName})
                                 </span>
                                 <img
                                     class="h-5 mx-1"
-                                    src="https://flagsapi.com/{accounts[
+                                    src="https://flagsapi.com/{data.accounts[
                                         player.summonerName
                                     ].pro?.country}/flat/64.png"
-                                    alt="{accounts[player.summonerName].pro
+                                    alt="{data.accounts[player.summonerName].pro
                                         ?.country} flag"
                                 />
-                                {accounts[player.summonerName].pro?.name}
+                                {data.accounts[player.summonerName].pro?.name}
                             {:else}
                                 <span>
                                     {player.summonerName}
@@ -319,14 +296,14 @@
                             class:text-white={player.summonerName !==
                                 data.targetSummonerName}
                         >
-                            {#if accounts[player.summonerName]?.pro}
-                                {accounts[player.summonerName].pro?.name}
+                            {#if data.accounts[player.summonerName]?.pro}
+                                {data.accounts[player.summonerName].pro?.name}
                                 <img
                                     class="h-5 mx-1"
-                                    src="https://flagsapi.com/{accounts[
+                                    src="https://flagsapi.com/{data.accounts[
                                         player.summonerName
                                     ].pro?.country}/flat/64.png"
-                                    alt="{accounts[player.summonerName].pro
+                                    alt="{data.accounts[player.summonerName].pro
                                         ?.country} flag"
                                 />
                                 <span>

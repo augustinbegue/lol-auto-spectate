@@ -47,11 +47,12 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         try {
             await this.exec();
         } catch (error) {
+            this.kill();
             this.emit("onGameExited", this.summoner, this.currentGame);
 
             log.warn(`Client exited with error: `, error);
 
-            if (!this.gameEnded) {
+            if (!this.gameEnded && error != 1) {
                 // Game crashed
                 log.warn(
                     "Client crashed. Relaunching spectator client in 10 seconds.",
@@ -60,6 +61,10 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                 await new Promise((resolve) => setTimeout(resolve, 1000 * 10));
 
                 await this.launch(this.summoner, this.currentGame, retry + 1);
+            } else if (error == 1) {
+                log.info(
+                    "Client exited normally. Not relaunching spectator client",
+                );
             } else {
                 log.info("Game ended. Not relaunching spectator client");
             }
@@ -85,6 +90,8 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
         this.spectatorProcess = null;
     }
 
+    lastLog = "";
+    lastLogTime = 0;
     private exec() {
         if (!this.summoner) {
             throw new Error("[lol-controller] Summoner not found");
@@ -125,7 +132,8 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
 
             // Handle spectator client output
             this.spectatorProcess.stderr?.on("data", async (data) => {
-                // log.debug(data);
+                this.lastLog = data as string;
+                this.lastLogTime = Date.now();
 
                 // Check for replay error
                 if ((data as string).includes("ERROR| ReplayDownloader")) {
@@ -177,7 +185,7 @@ export class LolController extends (EventEmitter as new () => TypedEmitter<LolCo
                             this.currentGame!,
                         );
 
-                        await this.exit();
+                        this.exit();
                     }, 1000 * 10);
                 }
             });

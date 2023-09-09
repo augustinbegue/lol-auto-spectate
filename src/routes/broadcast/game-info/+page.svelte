@@ -26,8 +26,6 @@
             for (let i = 1; i < data.leagueHistory.length; i++) {
                 const entry = data.leagueHistory[i];
 
-                console.log(entry);
-
                 let lpDelta = entry.leaguePoints - lastEntry.leaguePoints;
 
                 if (lpDelta != 0) {

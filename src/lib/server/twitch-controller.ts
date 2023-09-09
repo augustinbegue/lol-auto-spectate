@@ -49,7 +49,9 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         super();
 
         this.on("onSwitch", async (summoner) => {
-            await this.chatAnnouncement(`Switching to ${this.voteSummonerDisplayName}`);
+            await this.chatAnnouncement(
+                `Switching to ${this.voteSummonerDisplayName}`,
+            );
 
             await this.updateStream({
                 title: process.env.TWITCH_STREAM_TITLE?.replace(
@@ -77,8 +79,9 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             grant_type: "client_credentials",
         };
 
-        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${details.client_id
-            }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
+        return `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${
+            details.client_id
+        }&redirect_uri=${redirect_uri}&scope=${this.scopes.join("+")}`;
     }
 
     async authenticate(redirect_uri: string, code: string) {
@@ -129,7 +132,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         this.connectToChat();
     }
 
-    private async refresh() {
+    private async refresh(retryCount = 0) {
         const details = {
             client_id: process.env.TWITCH_CLIENT_ID,
             client_secret: process.env.TWITCH_CLIENT_SECRET,
@@ -144,22 +147,35 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             formBody.push(encodedKey + "=" + encodedValue);
         }
 
-        const res = await fetch("https://id.twitch.tv/oauth2/token", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: formBody.join("&"),
-        });
+        try {
+            const res = await fetch("https://id.twitch.tv/oauth2/token", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: formBody.join("&"),
+            });
 
-        const json = await res.json();
+            const json = await res.json();
 
-        if (!json.access_token) {
-            throw new Error("[twitch-bot] Failed to refresh Twitch token");
+            if (!json.access_token) {
+                throw new Error("[twitch-bot] Failed to refresh Twitch token");
+            }
+
+            this.accessToken = json.access_token;
+            this.refreshToken = json.refresh_token;
+        } catch (error) {
+            let delay = 1000 * 60 * 10 * retryCount;
+
+            log.error(
+                `Failed to refresh Twitch token, retrying in ${delay} seconds`,
+                error,
+            );
+
+            await new Promise((resolve) => setTimeout(resolve, delay));
+
+            await this.refresh(retryCount + 1);
         }
-
-        this.accessToken = json.access_token;
-        this.refreshToken = json.refresh_token;
     }
 
     async twitchRequest(
@@ -192,7 +208,8 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
         if (!res.ok) {
             log.error(
-                `Failed to make Twitch request to ${path} (${res.status} ${res.statusText
+                `Failed to make Twitch request to ${path} (${res.status} ${
+                    res.statusText
                 }): ${await res.text()}`,
             );
         }
@@ -211,9 +228,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             );
 
             if (!res.ok) {
-                log.error(
-                    `Failed to get user ${username}.`,
-                );
+                log.error(`Failed to get user ${username}.`);
                 return;
             }
 
@@ -235,8 +250,6 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             );
         }
 
-        log.info(`Sending chat announcement: ${message}`,);
-
         const res = await this.twitchRequest(
             "POST",
             `helix/chat/announcements?broadcaster_id=${this.twitchUser.id}&moderator_id=${this.twitchUser.id}`,
@@ -250,7 +263,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         );
 
         if (res.ok) {
-            log.info(`Chat announcement sent: ${message}`);
+            log.info(`Sent chat announcement: ${message}`);
             return true;
         }
         return false;
@@ -377,12 +390,18 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             if (res.ok) {
                 const data = await res.json();
 
-                log.info(`Started commercial for ${duration}s. Next commercial: ${data.data[0].retry_after}s`);
-                this.commercial_retry_date = new Date(Date.now() + data.data[0].retry_after * 1000).getTime();
+                log.info(
+                    `Started commercial for ${duration}s. Next commercial: ${data.data[0].retry_after}s`,
+                );
+                this.commercial_retry_date = new Date(
+                    Date.now() + data.data[0].retry_after * 1000,
+                ).getTime();
 
                 return true;
             } else {
-                log.error(`Failed to start commercial: ${res.status} ${res.statusText}`);
+                log.error(
+                    `Failed to start commercial: ${res.status} ${res.statusText}`,
+                );
                 return false;
             }
         }
@@ -403,9 +422,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         );
 
         if (!res.ok) {
-            throw new Error(
-                `[twitch-bot] Failed to get last prediction.`,
-            );
+            throw new Error(`[twitch-bot] Failed to get last prediction.`);
             return;
         }
 
@@ -421,7 +438,11 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
     async startPrediction(summoner: CachedSummoner, game: CurrentGameInfo) {
         const lastPrediction = await this.getLastPrediction();
 
-        if (lastPrediction && (lastPrediction.status === "ACTIVE" || lastPrediction.status === "LOCKED")) {
+        if (
+            lastPrediction &&
+            (lastPrediction.status === "ACTIVE" ||
+                lastPrediction.status === "LOCKED")
+        ) {
             log.warn(`Prediction already in progress, cancelling it.`);
 
             await this.endPrediction("CANCELED");
@@ -437,8 +458,8 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
             (p) => p.summonerName === summoner.name,
         )?.teamId;
 
-        let outcome1 = "Blue Side"
-        let outcome2 = "Red Side"
+        let outcome1 = "Blue Side";
+        let outcome2 = "Red Side";
 
         const res = await this.twitchRequest(
             "POST",
@@ -462,9 +483,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         );
 
         if (!res.ok) {
-            log.error(
-                `Failed to start prediction.`,
-            );
+            log.error(`Failed to start prediction.`);
             return;
         }
 
@@ -480,19 +499,26 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
     async endPrediction(status: "RESOLVED" | "CANCELED", match?: Match) {
         const lastPrediction = await this.getLastPrediction();
 
-        if (!lastPrediction || (lastPrediction.status !== "ACTIVE" && lastPrediction.status !== "LOCKED")) {
-            log.error(
-                `No prediction in progress.`,
-            );
+        if (
+            !lastPrediction ||
+            (lastPrediction.status !== "ACTIVE" &&
+                lastPrediction.status !== "LOCKED")
+        ) {
+            log.error(`No prediction in progress.`);
             return;
         }
 
         let winning_outcome_id: string | undefined;
 
         if (status != "CANCELED") {
-            let winningTeam = (JSON.parse(match?.data ?? "{}") as MatchDTO).info.teams.find(t => t.win)?.teamId;
+            let winningTeam = (
+                JSON.parse(match?.data ?? "{}") as MatchDTO
+            ).info.teams.find((t) => t.win)?.teamId;
 
-            winning_outcome_id = winningTeam === 100 ? lastPrediction.outcomes[0].id : lastPrediction.outcomes[1].id;
+            winning_outcome_id =
+                winningTeam === 100
+                    ? lastPrediction.outcomes[0].id
+                    : lastPrediction.outcomes[1].id;
         }
 
         const twitchUser = await this.getUser(process.env.TWITCH_CHANNEL ?? "");
@@ -516,9 +542,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
         );
 
         if (!res.ok) {
-            log.error(
-                `Failed to end prediction.`,
-            );
+            log.error(`Failed to end prediction.`);
             return;
         }
 
@@ -744,7 +768,8 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
             this.client!.say(
                 target,
-                `@${context.username
+                `@${
+                    context.username
                 } https://euw.op.gg/summoner/userName=${encodeURIComponent(
                     this.currentSummonerName,
                 )}`,

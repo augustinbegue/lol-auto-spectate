@@ -169,6 +169,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         twitchController.on("onSwitch", async (summoner) => {
             log.info(`onSwitch: ${summoner.name}`);
 
+            await lolSpectator.stop();
             await lolSpectator.setSummoner(summoner);
         });
     }
