@@ -235,7 +235,10 @@
                         <p>
                             {sessionWins}W {sessionLosses}L {#if sessionWins + sessionLosses != 0}({sessionWinrate}%)
                             {/if} |
-                            {#each sessionHistory.slice(sessionHistory.length - 10) as r}
+                            {#each sessionHistory
+                                .reverse()
+                                .slice(0, 10)
+                                .reverse() as r, i}
                                 <p class={r}>
                                     {r}
                                 </p>
