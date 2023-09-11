@@ -20,6 +20,8 @@
 
     $: {
         if (data.leagueHistory) {
+            console.log(data.leagueHistory);
+
             historyData = [];
             let lastEntry = data.leagueHistory[0];
 
@@ -70,6 +72,7 @@
 
                 lastEntry = entry;
             }
+            historyData = historyData.reverse().slice(0, 9).reverse();
         }
     }
 
@@ -390,21 +393,21 @@
             {/if}
         </p>
 
-        {#if status != "offline"}
+        {#if status != "offline" && data.leagueHistory && data.leagueHistory.length > 0}
             <p class="text-2xl font-mono text-purple font-bold mt-8">History</p>
 
             <div
                 class="w-full flex flex-row items-center justify-center font-mono text-white gap-4"
             >
-                {#each historyData.slice(historyData.length - 10) as entry}
+                {#each historyData as entry}
                     <div
                         class="flex flex-col items-center justify-center p-2 bg-opacity-20"
                         class:bg-pink={entry.lpDelta > 0}
                         class:bg-red-400={entry.lpDelta < 0}
                     >
-                        <div class="w-16">
+                        <div class="w-20">
                             <RankDisplay
-                                size="xsmall"
+                                size="small"
                                 leagueEntry={entry.leagueEntry}
                             />
                         </div>
@@ -414,6 +417,19 @@
                             class:text-red-400={entry.lpDelta < 0}
                         >
                             {entry.lpDelta > 0 ? "+" : ""}{entry.lpDelta}
+                        </span>
+                        <span class="text-sm">
+                            {(Date.now() - entry.date.getTime()) /
+                                (1000 * 60 * 60) >
+                            1
+                                ? `${Math.round(
+                                      (Date.now() - entry.date.getTime()) /
+                                          (1000 * 60 * 60),
+                                  )}h`
+                                : `${Math.round(
+                                      (Date.now() - entry.date.getTime()) /
+                                          (1000 * 60),
+                                  )}m`} ago
                         </span>
                     </div>
                 {/each}
