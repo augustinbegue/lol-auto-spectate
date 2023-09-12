@@ -28,6 +28,12 @@
             for (let i = 1; i < data.leagueHistory.length; i++) {
                 const entry = data.leagueHistory[i];
 
+                console.log(
+                    `lastEntry: ${lastEntry.leaguePoints}, entry: ${
+                        entry.leaguePoints
+                    }, lpDelta: ${entry.leaguePoints - lastEntry.leaguePoints}`,
+                );
+
                 let lpDelta = entry.leaguePoints - lastEntry.leaguePoints;
 
                 if (lpDelta != 0) {
@@ -57,6 +63,8 @@
                                 leagueEntry: entry,
                             },
                         ];
+
+                        lastEntry = entry;
                     } else if (entry.losses > lastEntry.losses) {
                         historyData = [
                             ...historyData,
@@ -67,10 +75,10 @@
                                 leagueEntry: entry,
                             },
                         ];
+
+                        lastEntry = entry;
                     }
                 }
-
-                lastEntry = entry;
             }
             historyData = historyData.reverse().slice(0, 9).reverse();
         }
