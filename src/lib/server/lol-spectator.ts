@@ -1,6 +1,5 @@
 import type TypedEmitter from "typed-emitter";
 import { EventEmitter } from "node:events";
-import { RiotApiWrapper } from "lol-api-wrapper";
 import type {
     CurrentGameInfo,
     LeagueEntryDTO,
@@ -15,6 +14,8 @@ import {
     type CachedSummoner,
 } from "./utils/db";
 import type { Summoner } from "@prisma/client";
+import { riot } from "./utils/riot";
+import type { RiotApiWrapper } from "lol-api-wrapper";
 
 const log = new Logger({
     name: "lol-spectator",
@@ -40,7 +41,7 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
         super();
 
         this.client = new LolController(findLeaguePath());
-        this.api = new RiotApiWrapper(process.env.RIOT_API_KEY!);
+        this.api = riot;
         this.summoner = null;
         this.spectatorId = crypto.randomUUID();
     }

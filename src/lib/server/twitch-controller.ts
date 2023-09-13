@@ -3,10 +3,11 @@ import type TypedEmitter from "typed-emitter";
 import { EventEmitter } from "node:events";
 import tmi, { type Options, type CommonUserstate, client } from "tmi.js";
 import { Logger } from "tslog";
-import { RiotApiWrapper } from "lol-api-wrapper";
+import type { RiotApiWrapper } from "lol-api-wrapper";
 import { getSummoner, type CachedSummoner } from "./utils/db";
 import type { LeagueEntries, Match, Pro, Summoner } from "@prisma/client";
 import type { CurrentGameInfo, MatchDTO } from "lol-api-wrapper/types";
+import { riot } from "./utils/riot";
 
 const log = new Logger({
     name: "twitch-bot",
@@ -68,7 +69,7 @@ export class TwitchController extends (EventEmitter as new () => TypedEmitter<Tw
 
     async init() {
         if (!this.riot) {
-            this.riot = new RiotApiWrapper(process.env.RIOT_API_KEY!);
+            this.riot = riot;
         }
     }
 

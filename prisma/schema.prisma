@@ -67,3 +67,10 @@ model Match {
   summonerName String?
   data         String
 }
+
+model RateLimit {
+  name  String   @id @unique
+  end   DateTime
+  limit Int
+  count Int
+}

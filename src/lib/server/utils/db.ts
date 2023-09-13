@@ -1,5 +1,4 @@
 import type { Match, Pro, Summoner } from "@prisma/client";
-import { RiotApiWrapper } from "lol-api-wrapper";
 import { getLolProSummoner } from "./lolPro";
 import type {
     LeagueEntryDTO,
@@ -7,10 +6,11 @@ import type {
     SummonerDTO,
 } from "lol-api-wrapper/types";
 import prisma from "./prisma";
+import { riot } from "./riot";
 
 const QUEUE_TYPE = "RANKED_SOLO_5x5";
 
-const api = new RiotApiWrapper(process.env.RIOT_API_KEY!);
+const api = riot;
 
 export type CachedSummoner = Summoner & {
     pro: Pro | null;
