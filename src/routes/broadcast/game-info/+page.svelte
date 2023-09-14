@@ -84,7 +84,14 @@
         }
     }
 
+    $: maxDamageDealtToChampions =
+        data.replay?.match.info.participants
+            .map((p) => p.totalDamageDealtToChampions)
+            .reduce((a, b) => Math.max(a, b), 0) ?? 0;
+
     onMount(async () => {
+        console.log(data);
+
         interval = setInterval(async () => {
             await fetchStatus();
         }, 1000);
@@ -401,7 +408,65 @@
             {/if}
         </p>
 
-        {#if status != "offline" && data.leagueHistory && data.leagueHistory.length > 0}
+        {#if status != "offline" && data.replay?.match}
+            <p class="text-2xl font-mono text-purple font-bold mt-8">
+                Previous game
+            </p>
+
+            <div class="flex flex-row w-full">
+                <div class="flex flex-col font-mono text-white w-1/2">
+                    {#each data.replay.match.info.participants.filter((p) => p.teamId === 100) as p}
+                        {@const damagePercentage = Math.round(
+                            (p.totalDamageDealtToChampions /
+                                maxDamageDealtToChampions) *
+                                100,
+                        )}
+                        <div
+                            class="flex flex-row p-2"
+                            style="background: linear-gradient(90deg, rgb(96, 165, 250) 0%, rgb(96, 165, 250) {damagePercentage}%, rgb(25, 24, 37) {damagePercentage}%, rgb(25, 24, 37) 100%);
+"
+                        >
+                            <img
+                                src={getChampionImageById(p.championId)}
+                                alt=""
+                            />
+                            <span class="font-bold mx-2">
+                                {p.summonerName}
+                            </span>
+                            {p.totalDamageDealtToChampions}
+                        </div>
+                    {/each}
+                </div>
+                <div class="flex flex-col font-mono text-white w-1/2">
+                    {#each data.replay.match.info.participants.filter((p) => p.teamId === 200) as p}
+                        {@const damagePercentage =
+                            100 -
+                            Math.round(
+                                (p.totalDamageDealtToChampions /
+                                    maxDamageDealtToChampions) *
+                                    100,
+                            )}
+                        <div
+                            class="flex flex-row-reverse p-2 text-white"
+                            style="background: linear-gradient(90deg, rgb(25, 24, 37) 0%, rgb(25, 24, 37) {damagePercentage}%, rgb(248, 113, 113) {damagePercentage}%, rgb(248, 113, 113) 100%);
+"
+                        >
+                            <img
+                                src={getChampionImageById(p.championId)}
+                                alt=""
+                            />
+
+                            <span class="font-bold mx-2">
+                                {p.summonerName}
+                            </span>
+                            {p.totalDamageDealtToChampions}
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
+        {#if status != "offline" && data.leagueHistory && data.leagueHistory.length > 1}
             <p class="text-2xl font-mono text-purple font-bold mt-8">History</p>
 
             <div

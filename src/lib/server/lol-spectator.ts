@@ -36,11 +36,12 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
     timeoutInterval = 1000 * 5;
 
     lastSpectatedGameId = 0;
+    lastSpectatedGameReplayId = "EUW1_6591904871";
 
     constructor() {
         super();
 
-        this.client = new LolController(findLeaguePath());
+        this.client = new LolController("/"/*findLeaguePath()*/);
         this.api = riot;
         this.summoner = null;
         this.spectatorId = crypto.randomUUID();
@@ -99,6 +100,7 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
 
             // New game found
             this.lastSpectatedGameId = currentGame.gameId;
+            this.lastSpectatedGameReplayId = `${currentGame.platformId}_${currentGame.gameId}`
 
             await this.client.launch(this.summoner, currentGame);
         } else {

@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         }
 
         const summoner = await getSummoner(summonerName);
-
+        
         if (!summoner) {
             throw error(404, "Summoner not found");
         }

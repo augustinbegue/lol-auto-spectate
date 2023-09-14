@@ -1,13 +1,14 @@
 import type { LeagueEntryDTO } from "lol-api-wrapper/types";
 import type { PageServerLoad } from "./$types";
-import champions from "../../../../static/assets/datadragon/data/en_GB/champion.json";
-import summoner from "../../../../static/assets/datadragon/data/en_GB/summoner.json";
-import runesReforged from "../../../../static/assets/datadragon/data/en_GB/runesReforged.json";
+// import champions from "../../../../static/assets/datadragon/data/en_GB/champion.json";
+// import summoner from "../../../../static/assets/datadragon/data/en_GB/summoner.json";
+// import runesReforged from "../../../../static/assets/datadragon/data/en_GB/runesReforged.json";
 import {
     getSummonerLeagueEntries,
     refreshSummonerLeagueEntries,
     type CachedSummoner,
     getSummoner,
+    getMatchReplay,
 } from "$lib/server/utils/db";
 import type { LeagueEntries } from "@prisma/client";
 
@@ -109,7 +110,15 @@ export const load: PageServerLoad = async ({ locals }) => {
             await getSummonerLeagueEntries(currentSummoner?.name!, 10)
         ).reverse();
 
+        let lastGameReplayId = locals.lolSpectator.lastSpectatedGameReplayId;
+
+        const matchReplay = await getMatchReplay(lastGameReplayId);
+        
         return {
+            replay: {
+                lastGameReplayId,
+                match: matchReplay,
+            },
             leagueHistory,
         };
     } else {

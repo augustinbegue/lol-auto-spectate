@@ -257,3 +257,12 @@ export async function getMatch(
         return null;
     }
 }
+
+export async function getMatchReplay(
+    replayId: string
+) {
+    const match = await api.getMatchByMatchId("EUROPE", replayId);
+
+
+    return match;
+}
