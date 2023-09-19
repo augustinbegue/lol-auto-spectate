@@ -8,6 +8,7 @@ import { Logger } from "tslog";
 import "dotenv/config";
 import type { AutoSpectateStatus } from "./app";
 import { getMatch, refreshSummonerLeagueEntries } from "$lib/server/utils/db";
+import { findInGameSummoner } from "$lib/server/utils/findInGameSummoner";
 
 const log = new Logger({
     name: "hooks",
@@ -26,6 +27,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
         log.warn("lolSpectator not initialized, initializing...");
         lolSpectator = new LolSpectator();
+        const inGameSummoner = await findInGameSummoner();
+        if (inGameSummoner)
+            lolSpectator.setSummoner(inGameSummoner);
     }
 
     let obsControllerInitialized = true;
@@ -91,74 +95,74 @@ export const handle: Handle = async ({ event, resolve }) => {
             }
         });
 
-        // /*
-        //  * On Game Loading
-        //  */
-        // lolSpectator.client.on(
-        //     "onGameLoading",
-        //     async (summoner, game, process) => {
-        //         log.info(`onGameLoading: ${game.gameId}`);
-        //         status = "loading";
-        //     },
-        // );
+        /*
+         * On Game Loading
+         */
+        lolSpectator.client.on(
+            "onGameLoading",
+            async (summoner, game, process) => {
+                log.info(`onGameLoading: ${game.gameId}`);
+                status = "loading";
+            },
+        );
 
-        // /*
-        //  * On Game Started
-        //  */
-        // lolSpectator.client.on("onGameStarted", async (summoner, game) => {
-        //     log.info(`onGameStarted: ${game.gameId}`);
-        //     status = "ingame";
+        /*
+         * On Game Started
+         */
+        lolSpectator.client.on("onGameStarted", async (summoner, game) => {
+            log.info(`onGameStarted: ${game.gameId}`);
+            status = "ingame";
 
-        //     if (obsController.connected) {
-        //         await obsController.setGameScene();
-        //     }
-        // });
+            if (obsController.connected) {
+                await obsController.setGameScene();
+            }
+        });
 
-        // /*
-        //  * On Game Ended
-        //  */
-        // lolSpectator.client.on("onGameEnded", async (summoner, game) => {
-        //     log.info(`onGameEnded: ${game.gameId}`);
+        /*
+         * On Game Ended
+         */
+        lolSpectator.client.on("onGameEnded", async (summoner, game) => {
+            log.info(`onGameEnded: ${game.gameId}`);
 
-        //     status = "searching";
+            status = "searching";
 
-        //     try {
-        //         await refreshSummonerLeagueEntries(summoner.name);
-        //         const match = await getMatch(game.gameId, summoner);
+            try {
+                await refreshSummonerLeagueEntries(summoner.name);
+                const match = await getMatch(game.gameId, summoner);
 
-        //         if (obsController.connected) {
-        //             await obsController.setWaitingScene();
-        //         }
+                if (obsController.connected) {
+                    await obsController.setWaitingScene();
+                }
 
-        //         if (twitchController && twitchController.authenticated) {
-        //             await twitchController.startCommercial(180);
+                if (twitchController && twitchController.authenticated) {
+                    await twitchController.startCommercial(180);
 
-        //             if (match) {
-        //                 await twitchController.endPrediction("RESOLVED", match);
-        //             } else {
-        //                 await twitchController.endPrediction("CANCELED");
-        //             }
-        //         }
-        //     } catch (error) {
-        //         log.error(error);
-        //     }
+                    if (match) {
+                        await twitchController.endPrediction("RESOLVED", match);
+                    } else {
+                        await twitchController.endPrediction("CANCELED");
+                    }
+                }
+            } catch (error) {
+                log.error(error);
+            }
 
-        //     lolSpectator.checkForNewGame();
-        // });
+            lolSpectator.checkForNewGame();
+        });
 
-        // /*
-        //  * On Game Exited
-        //  */
-        // lolSpectator.client.on("onGameExited", async (summoner, game) => {
-        //     log.info(`onGameExited: ${game?.gameId}`);
+        /*
+         * On Game Exited
+         */
+        lolSpectator.client.on("onGameExited", async (summoner, game) => {
+            log.info(`onGameExited: ${game?.gameId}`);
 
-        //     if (
-        //         obsController.connected &&
-        //         !(await obsController.isWaitingScene())
-        //     ) {
-        //         await obsController.setWaitingScene();
-        //     }
-        // });
+            if (
+                obsController.connected &&
+                !(await obsController.isWaitingScene())
+            ) {
+                await obsController.setWaitingScene();
+            }
+        });
     }
 
     if (!obsControllerInitialized) {

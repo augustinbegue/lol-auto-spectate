@@ -16,6 +16,7 @@ import {
 import type { Summoner } from "@prisma/client";
 import { riot } from "./utils/riot";
 import type { RiotApiWrapper } from "lol-api-wrapper";
+import { findInGameSummoner } from "./utils/findInGameSummoner";
 
 const log = new Logger({
     name: "lol-spectator",
@@ -37,14 +38,16 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
 
     lastSpectatedGameId = 0;
     lastSpectatedGameReplayId = "EUW1_6591904871";
+    lastSpectatedGameTime: number;
 
     constructor() {
         super();
 
-        this.client = new LolController("/"/*findLeaguePath()*/);
+        this.client = new LolController(findLeaguePath());
         this.api = riot;
         this.summoner = null;
         this.spectatorId = crypto.randomUUID();
+        this.lastSpectatedGameTime = Date.now();
     }
 
     async setSummoner(summoner: CachedSummoner) {
@@ -79,6 +82,17 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
             throw new Error(`[lol-spectator] Summoner not found`);
         }
 
+        if (this.lastSpectatedGameTime + 1000 * 60 * 20 < Date.now()) {
+            // If the last game was more than 20 minutes ago, switch to another summoner
+
+            const newSummoner = await findInGameSummoner();
+
+            if (newSummoner) {
+                this.stop();
+                return this.setSummoner(newSummoner);
+            }
+        }
+
         this.retrySearch = true;
 
         // Check if the summoner has a game in progress
@@ -101,8 +115,9 @@ export class LolSpectator extends (EventEmitter as new () => TypedEmitter<LolSpe
             // New game found
             this.lastSpectatedGameId = currentGame.gameId;
             this.lastSpectatedGameReplayId = `${currentGame.platformId}_${currentGame.gameId}`
-
             await this.client.launch(this.summoner, currentGame);
+
+            this.lastSpectatedGameTime = Date.now();
         } else {
             log.info("No game found");
 
